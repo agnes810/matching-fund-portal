@@ -496,7 +496,7 @@ let FSTATUS=[], ADMIN=[], NOTICES=[], CASES=[], QAS=[];
 ══════════════════════════════════════ */
 const today=()=>new Date().toISOString().split('T')[0];
 const fmtD=d=>d?d.substring(2).replace(/-/g,'.'):''
-const fmtAmt=n=>n>=100000000?(n/100000000).toFixed(1)+'억원':Math.round(n/10000)+'만원';
+const fmtAmt=n=>n.toLocaleString('ko-KR')+'원';
 const gid=()=>Date.now().toString(36)+Math.random().toString(36).substr(2,4);
 const stObj=s=>STATUSES.find(x=>x.k===s)||STATUSES[0];
 
@@ -811,7 +811,8 @@ async function submitCase(){
   const f=ROLE==='found'?document.getElementById('c-found')?.value:'ARKO';
   if(!t||!b||(ROLE==='found'&&!f)){showToast('⚠ 필수 항목을 입력해주세요.');return;}
   const tags=(document.getElementById('c-tags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
-  await fsSet('cases',gid(),{id:gid(),type:document.getElementById('c-type').value,title:t,foundation:f,date:today(),body:b,tags});
+  const newId=gid();
+  await fsSet('cases',newId,{id:newId,type:document.getElementById('c-type').value,title:t,foundation:f,date:today(),body:b,tags});
   document.getElementById('c-title').value='';document.getElementById('c-body').value='';
   if(document.getElementById('c-tags'))document.getElementById('c-tags').value='';
 }
@@ -846,7 +847,8 @@ async function submitQA(){
   const f=document.getElementById('q-found')?.value;
   const b=document.getElementById('q-body')?.value.trim();
   if(!f||!b){showToast('⚠ 재단과 질문 내용을 입력해주세요.');return;}
-  await fsSet('qa',gid(),{id:gid(),foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
+  const newId=gid();
+  await fsSet('qa',newId,{id:newId,foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
   document.getElementById('q-body').value='';
 }
 async function submitAns(qid){
