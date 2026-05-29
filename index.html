@@ -8,6 +8,10 @@
 <!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// Firebase SDK 로드 확인
+window.firebaseReady = typeof firebase !== 'undefined';
+</script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -210,6 +214,11 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
 .confirm-ok:hover{background:#9a2222;}
 .confirm-cancel{padding:8px 20px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;cursor:pointer;}
 .confirm-cancel:hover{background:var(--border);}
+/* 토스트 알림 */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:11px 22px;border-radius:var(--rl);font-size:13px;font-weight:500;z-index:2000;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* 로딩 스피너 */
 .loading{text-align:center;padding:40px;color:var(--text2);font-size:13px;}
 .loading::before{content:'';display:block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -342,6 +351,9 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
   <div id="page-issues" class="page"><div id="issues-view"></div></div>
 </div>
 
+<!-- 토스트 알림 -->
+<div class="toast" id="toast"></div>
+
 <!-- 커스텀 확인 모달 -->
 <div class="confirm-overlay hidden" id="confirm-overlay">
   <div class="confirm-box">
@@ -380,6 +392,10 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
 /* ══════════════════════════════════════
    FIREBASE 초기화
 ══════════════════════════════════════ */
+if(typeof firebase === 'undefined'){
+  document.write('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"><\/script>');
+  document.write('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"><\/script>');
+}
 const firebaseConfig = {
   apiKey: "AIzaSyC6TXw1mEEtA6pETAhUv7DxDfgAc9MosQ8",
   authDomain: "matching-fund-2026.firebaseapp.com",
@@ -388,7 +404,7 @@ const firebaseConfig = {
   messagingSenderId: "434597248558",
   appId: "1:434597248558:web:478c2a47fd5f8ffea069bf"
 };
-firebase.initializeApp(firebaseConfig);
+if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 /* ══════════════════════════════════════
@@ -523,10 +539,35 @@ const changePw=()=>{
   const n1=document.getElementById('pw-new1').value;
   const n2=document.getElementById('pw-new2').value;
   const errEl=document.getElementById('pw-chg-err');
+  errEl.style.display='none';
   if(!n1||n1.length<4){errEl.textContent='4자 이상 입력해주세요.';errEl.style.display='block';return;}
   if(n1!==n2){errEl.textContent='비밀번호가 일치하지 않습니다.';errEl.style.display='block';return;}
-  localStorage.setItem(PW_KEY,n1);closePwModal();alert('✅ 비밀번호가 변경되었습니다.');
+  try{
+    localStorage.setItem(PW_KEY,n1);
+    const saved=localStorage.getItem(PW_KEY);
+    if(saved===n1){
+      closePwModal();
+      showToast('✅ 비밀번호가 변경되었습니다.');
+    } else {
+      errEl.textContent='저장에 실패했습니다. 다시 시도해주세요.';errEl.style.display='block';
+    }
+  }catch(e){
+    errEl.textContent='저장 오류: '+e.message;errEl.style.display='block';
+  }
 };
+/* ══════════════════════════════════════
+   토스트 알림
+══════════════════════════════════════ */
+let toastTimer=null;
+function showToast(msg, duration=2500){
+  const el=document.getElementById('toast');
+  if(!el)return;
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'), duration);
+}
+
 /* ══════════════════════════════════════
    커스텀 확인 모달
 ══════════════════════════════════════ */
@@ -587,6 +628,7 @@ function buildNav(){
 function showPage(name){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
+  if(name!=='admin') currentAdminDetailId=null;
   buildNav();
   renderPage(name);
 }
@@ -730,7 +772,7 @@ function renderNotices(){
 async function submitNotice(){
   const t=document.getElementById('n-title')?.value.trim();
   const b=document.getElementById('n-body')?.value.trim();
-  if(!t||!b){alert('제목과 내용을 입력해주세요.');return;}
+  if(!t||!b){showToast('⚠ 제목과 내용을 입력해주세요.');return;}
   const id=gid();
   await fsSet('notices',id,{id,type:document.getElementById('n-type').value,title:t,date:today(),body:b});
   document.getElementById('n-title').value='';document.getElementById('n-body').value='';
@@ -766,7 +808,7 @@ async function submitCase(){
   const t=document.getElementById('c-title')?.value.trim();
   const b=document.getElementById('c-body')?.value.trim();
   const f=ROLE==='found'?document.getElementById('c-found')?.value:'ARKO';
-  if(!t||!b||(ROLE==='found'&&!f)){alert('필수 항목을 입력해주세요.');return;}
+  if(!t||!b||(ROLE==='found'&&!f)){showToast('⚠ 필수 항목을 입력해주세요.');return;}
   const tags=(document.getElementById('c-tags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
   await fsSet('cases',gid(),{id:gid(),type:document.getElementById('c-type').value,title:t,foundation:f,date:today(),body:b,tags});
   document.getElementById('c-title').value='';document.getElementById('c-body').value='';
@@ -802,13 +844,13 @@ function renderQA(){
 async function submitQA(){
   const f=document.getElementById('q-found')?.value;
   const b=document.getElementById('q-body')?.value.trim();
-  if(!f||!b){alert('재단과 질문 내용을 입력해주세요.');return;}
+  if(!f||!b){showToast('⚠ 재단과 질문 내용을 입력해주세요.');return;}
   await fsSet('qa',gid(),{id:gid(),foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
   document.getElementById('q-body').value='';
 }
 async function submitAns(qid){
   const ans=document.getElementById('ans-'+qid)?.value.trim();
-  if(!ans){alert('답변을 입력해주세요.');return;}
+  if(!ans){showToast('⚠ 답변 내용을 입력해주세요.');return;}
   const q=QAS.find(x=>x.id===qid);if(!q)return;
   await fsSet('qa',qid,{...q,answer:ans,answeredBy:'ARKO',answeredDate:today(),status:'answered'});
 }
@@ -1162,11 +1204,27 @@ let currentAdminDetailId=null;
 function refreshCurrent(){
   const cur=document.querySelector('.page.active')?.id?.replace('page-','')||'home';
   if(cur==='admin'&&currentAdminDetailId!==null){
-    // 상세 화면 열려있으면 상세만 다시 렌더
     renderAdminDetail(currentAdminDetailId);
     return;
   }
+  // 모든 페이지 최신 데이터로 갱신
   renderPage(cur);
+  // 홈 요약 항상 갱신
+  if(cur!=='home') renderHomeData();
+}
+
+function renderHomeData(){
+  const waiting=QAS.filter(q=>q.status==='waiting').length;
+  const adv=FSTATUS.filter(f=>['교부결정','집행중','정산중','완료'].includes(f.status)).length;
+  const issOpen=ADMIN.reduce((a,x)=>a+(x.issues||[]).filter(i=>!i.r).length,0);
+  const statEl=document.getElementById('home-stats');
+  if(statEl) statEl.innerHTML=`
+    <div class="stat"><div class="stat-v">${adv}</div><div class="stat-l">교부결정 이상</div></div>
+    <div class="stat"><div class="stat-v">${FSTATUS.filter(f=>f.status==='집행중').length}</div><div class="stat-l">집행 중</div></div>
+    <div class="stat"><div class="stat-v">${CASES.length}</div><div class="stat-l">공유 사례</div></div>
+    <div class="stat"><div class="stat-v" style="color:var(--amber);">${waiting}</div><div class="stat-l">Q&A 대기</div></div>
+    ${ROLE==='arko'?`<div class="stat"><div class="stat-v" style="color:var(--red);">${issOpen}</div><div class="stat-l">미해결 이슈</div></div>`:''}
+  `;
 }
 
 /* ══════════════════════════════════════
