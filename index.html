@@ -410,7 +410,23 @@ tbody td{padding:8px 11px;color:var(--text);vertical-align:middle;}
 
 </div><!-- /main -->
 
-<script>
+<script type="module">
+/* ════ FIREBASE 연동 ════ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, orderBy, query } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC6TXw1mEEtA6pETAhUv7DxDfgAc9MosQ8",
+  authDomain: "matching-fund-2026.firebaseapp.com",
+  projectId: "matching-fund-2026",
+  storageBucket: "matching-fund-2026.firebasestorage.app",
+  messagingSenderId: "434597248558",
+  appId: "1:434597248558:web:478c2a47fd5f8ffea069bf"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 /* ════ DATA ════ */
 const FOUNDS=[
   {id:1,name:"대구문화예술진흥원",type:"광역",amount:130000000,ncas:"202637126"},
@@ -541,29 +557,129 @@ function fmtD(d){return d?d.substring(2).replace(/-/g,'.'):''}
 function fmtAmt(n){return n>=100000000?(n/100000000).toFixed(1)+'억원':Math.round(n/10000)+'만원';}
 function gid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,4);}
 
-function ld(k,seed){try{const r=localStorage.getItem('mfp_'+k);return r?JSON.parse(r):JSON.parse(JSON.stringify(seed));}catch(e){return JSON.parse(JSON.stringify(seed));}}
-function sv(k,d){try{localStorage.setItem('mfp_'+k,JSON.stringify(d));}catch(e){}}
+/* ════ FIRESTORE 저장/로드 ════ */
+// localStorage는 비밀번호 저장에만 사용
+const PW_KEY='mfp_pw';
 
-function initData(){
-  FSTATUS=ld('fstatus',DEF_FSTATUS);
-  ADMIN=ld('admin',DEF_ADMIN);
-  NOTICES=ld('notices',SEED_N);
-  CASES=ld('cases',SEED_C);
-  QAS=ld('qa',SEED_Q);
-  // apply default issues if empty
-  Object.entries(DEF_ADM_ISS).forEach(([id,iss])=>{
-    const a=ADMIN.find(x=>x.id==id);
-    if(a&&a.issues.length===0) a.issues=iss.map(i=>({t:i.t,r:i.r}));
+async function fsGet(col){
+  const q=query(collection(db,col),orderBy('date','desc'));
+  const snap=await getDocs(q);
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function fsGetAll(col){
+  const snap=await getDocs(collection(db,col));
+  return snap.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function fsSet(col,id,data){
+  await setDoc(doc(db,col,String(id)),data,{merge:true});
+}
+async function fsDel(col,id){
+  await deleteDoc(doc(db,col,String(id)));
+}
+
+// 실시간 리스너
+function listenCol(col,cb){
+  return onSnapshot(collection(db,col),snap=>{
+    const data=snap.docs.map(d=>({id:d.id,...d.data()}));
+    cb(data);
   });
-  // ensure pay fields exist (migration for existing saves)
-  FSTATUS.forEach(fs=>{
-    if(fs.pay1Applied===undefined){fs.pay1Applied=false;fs.pay1Date="";fs.pay1Amount=0;fs.pay1Done=false;}
-    if(fs.pay2Applied===undefined){fs.pay2Applied=false;fs.pay2Date="";fs.pay2Amount=0;fs.pay2Done=false;}
-  });
-  // ensure checks array structure
-  ADMIN.forEach(a=>{
-    if(!Array.isArray(a.checks[0])) a.checks=CL_SECS.map(s=>s.items.map(()=>false));
-  });
+}
+
+/* ════ STATE ════ */
+let ROLE='found', cFilter='', qFilter='', aText='', aStage='', aType='';
+let expanded={}, editingStId=null, adminDetailId=null;
+let FSTATUS=[], ADMIN=[], NOTICES=[], CASES=[], QAS=[];
+
+// 로딩 상태
+function showLoading(msg='불러오는 중...'){
+  document.getElementById('home-notices').innerHTML=`<div class="empty">${msg}</div>`;
+  document.getElementById('home-qa').innerHTML=`<div class="empty">${msg}</div>`;
+  document.getElementById('home-cases').innerHTML=`<div class="empty">${msg}</div>`;
+}
+
+async function initData(){
+  showLoading('Firebase 연결 중...');
+  try{
+    // FSTATUS 초기화 — 재단별 문서가 없으면 기본값 생성
+    const fsSnap=await getDocs(collection(db,'fstatus'));
+    const existIds=fsSnap.docs.map(d=>parseInt(d.id));
+    for(const f of FOUNDS){
+      if(!existIds.includes(f.id)){
+        await fsSet('fstatus',f.id,{
+          id:f.id,
+          status:f.id<=13?"사전검토중":f.id===14?"사업등록중":"대기",
+          eStep:f.id<=13?2:f.id===14?5:0,
+          execRate:0,memo:"",updatedAt:today(),
+          pay1Applied:false,pay1Date:"",pay1Amount:0,pay1Done:false,
+          pay2Applied:false,pay2Date:"",pay2Amount:0,pay2Done:false,
+        });
+      }
+    }
+    // ADMIN 초기화
+    const adSnap=await getDocs(collection(db,'admin'));
+    const existAdIds=adSnap.docs.map(d=>parseInt(d.id));
+    for(const f of FOUNDS){
+      if(!existAdIds.includes(f.id)){
+        const defIss=DEF_ADM_ISS[f.id]||[];
+        await fsSet('admin',f.id,{
+          id:f.id,
+          checks:CL_SECS.map(s=>s.items.map(()=>false)),
+          issues:defIss.map(i=>({t:i.t,r:i.r})),
+          memo:"",
+        });
+      }
+    }
+    // 씨드 공지 없으면 생성
+    const nSnap=await getDocs(collection(db,'notices'));
+    if(nSnap.empty){
+      for(const n of SEED_N) await fsSet('notices',n.id,{...n,date:n.date});
+    }
+    // 씨드 사례 없으면 생성
+    const cSnap=await getDocs(collection(db,'cases'));
+    if(cSnap.empty){
+      for(const c of SEED_C) await fsSet('cases',c.id,{...c,date:c.date});
+    }
+    // 씨드 QA 없으면 생성
+    const qSnap=await getDocs(collection(db,'qa'));
+    if(qSnap.empty){
+      for(const q of SEED_Q) await fsSet('qa',q.id,{...q,date:q.date});
+    }
+
+    // 실시간 리스너 등록
+    listenCol('fstatus',data=>{
+      FSTATUS=FOUNDS.map(f=>data.find(x=>x.id==f.id)||{id:f.id,status:'대기',eStep:0,execRate:0,memo:'',updatedAt:today(),pay1Applied:false,pay1Date:'',pay1Amount:0,pay1Done:false,pay2Applied:false,pay2Date:'',pay2Amount:0,pay2Done:false});
+      renderPage(document.querySelector('.page.active')?.id?.replace('page-','')||'home');
+    });
+    listenCol('admin',data=>{
+      ADMIN=FOUNDS.map(f=>{
+        const a=data.find(x=>x.id==f.id)||{id:f.id,checks:CL_SECS.map(s=>s.items.map(()=>false)),issues:[],memo:''};
+        if(!Array.isArray(a.checks[0])) a.checks=CL_SECS.map(s=>s.items.map(()=>false));
+        return a;
+      });
+    });
+    listenCol('notices',data=>{
+      NOTICES=data.sort((a,b)=>b.date.localeCompare(a.date));
+      const active=document.querySelector('.page.active')?.id?.replace('page-','');
+      if(active==='notice')renderNotices();
+      renderHomePartial();
+    });
+    listenCol('cases',data=>{
+      CASES=data.sort((a,b)=>b.date.localeCompare(a.date));
+      const active=document.querySelector('.page.active')?.id?.replace('page-','');
+      if(active==='cases')renderCases();
+      renderHomePartial();
+    });
+    listenCol('qa',data=>{
+      QAS=data.sort((a,b)=>b.date.localeCompare(a.date));
+      const active=document.querySelector('.page.active')?.id?.replace('page-','');
+      if(active==='qa')renderQA();
+      renderHomePartial();
+    });
+
+  }catch(e){
+    console.error('Firebase 연결 오류:',e);
+    document.getElementById('home-notices').innerHTML=`<div class="empty" style="color:var(--red);">연결 오류. 새로고침 해주세요.</div>`;
+  }
 }
 
 /* ════ NAV ════ */
@@ -709,6 +825,10 @@ function setRole(r){
 }
 
 /* ════ HOME ════ */
+function renderHomePartial(){
+  const active=document.querySelector('.page.active')?.id?.replace('page-','');
+  if(active==='home')renderHome();
+}
 function renderHome(){
   const waiting=QAS.filter(q=>q.status==='waiting').length;
   const adv=FSTATUS.filter(f=>['교부결정','집행중','정산중','완료'].includes(f.status)).length;
@@ -790,16 +910,17 @@ function renderStatus(){
     </tr>`;
   }).join('');
 }
-function saveStEdit(id){
+async function saveStEdit(id){
   const idx=FSTATUS.findIndex(f=>f.id===id);if(idx<0)return;
-  FSTATUS[idx]={...FSTATUS[idx],
+  const updated={...FSTATUS[idx],
     status:document.getElementById(`ies-${id}`)?.value||FSTATUS[idx].status,
     eStep:parseInt(document.getElementById(`iee-${id}`)?.value)||FSTATUS[idx].eStep,
     execRate:Math.min(100,Math.max(0,parseInt(document.getElementById(`ier-${id}`)?.value)||0)),
     memo:document.getElementById(`iem-${id}`)?.value||'',
     updatedAt:today(),
   };
-  sv('fstatus',FSTATUS); editingStId=null; renderStatus(); renderHome();
+  await fsSet('fstatus',id,updated);
+  editingStId=null; renderStatus();
 }
 
 /* ════ NOTICES ════ */
@@ -820,16 +941,16 @@ function renderNotices(){
       <div class="li-top"><span class="badge ${n.type==='important'?'bi':'bn'}">${n.type==='important'?'필독':'공지'}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${n.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${exp?'▲':'▼'}</button></div>
       <div class="li-meta">ARKO · ${fmtD(n.date)}</div>
       ${exp?`<div class="li-body">${n.body}</div>`:''}
-      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){NOTICES=NOTICES.filter(x=>x.id!=='${n.id}');sv('notices',NOTICES);renderNotices();renderHome();}">삭제</button></div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){fsDel('notices','${n.id}');}">삭제</button></div>`:''}
     </div>`;}).join(''):'<div class="empty">공지 없음</div>';
 }
-function submitNotice(){
+async function submitNotice(){
   const t=document.getElementById('n-title')?.value.trim();
   const b=document.getElementById('n-body')?.value.trim();
   if(!t||!b){alert('제목과 내용을 입력해주세요.');return;}
-  NOTICES.unshift({id:gid(),type:document.getElementById('n-type').value,title:t,date:today(),body:b});
-  sv('notices',NOTICES);document.getElementById('n-title').value='';document.getElementById('n-body').value='';
-  renderNotices();renderHome();
+  const id=gid();
+  await fsSet('notices',id,{id,type:document.getElementById('n-type').value,title:t,date:today(),body:b});
+  document.getElementById('n-title').value='';document.getElementById('n-body').value='';
 }
 
 /* ════ CASES ════ */
@@ -853,19 +974,19 @@ function renderCases(){
       <div class="li-top"><span class="badge bc">${c.type}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${c.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${exp?'▲':'▼'}</button></div>
       <div class="li-meta"><span class="badge bf" style="font-size:10px;">${c.foundation}</span> · ${fmtD(c.date)}</div>
       ${exp?`<div class="li-body">${c.body}</div><div class="case-tags">${c.tags.map(t=>`<span class="case-tag">#${t}</span>`).join('')}</div>`:''}
-      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){CASES=CASES.filter(x=>x.id!=='${c.id}');sv('cases',CASES);renderCases();renderHome();}">삭제</button></div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){fsDel('cases','${c.id}');}">삭제</button></div>`:''}
     </div>`;}).join(''):'<div class="empty">공유된 사례가 없습니다.</div>';
 }
-function submitCase(){
+async function submitCase(){
   const t=document.getElementById('c-title')?.value.trim();
   const b=document.getElementById('c-body')?.value.trim();
   const f=ROLE==='found'?document.getElementById('c-found')?.value:'ARKO';
   if(!t||!b||(ROLE==='found'&&!f)){alert('필수 항목을 입력해주세요.');return;}
   const tags=(document.getElementById('c-tags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
-  CASES.unshift({id:gid(),type:document.getElementById('c-type').value,title:t,foundation:f,date:today(),body:b,tags});
-  sv('cases',CASES);document.getElementById('c-title').value='';document.getElementById('c-body').value='';
+  const id=gid();
+  await fsSet('cases',id,{id,type:document.getElementById('c-type').value,title:t,foundation:f,date:today(),body:b,tags});
+  document.getElementById('c-title').value='';document.getElementById('c-body').value='';
   if(document.getElementById('c-tags'))document.getElementById('c-tags').value='';
-  renderCases();renderHome();
 }
 
 /* ════ Q&A ════ */
@@ -888,23 +1009,23 @@ function renderQA(){
       ${exp?`<div style="margin-top:8px;">
         ${q.answer?`<div class="ans-box"><div class="ans-lbl">ARKO 답변 · ${fmtD(q.answeredDate)}</div><div class="ans-txt">${q.answer}</div></div>`:'<div style="font-size:12px;color:var(--text2);padding:6px 0;">ARKO 검토 중입니다.</div>'}
         ${ROLE==='arko'&&q.status==='waiting'?`<div class="ans-form"><div style="font-size:11.5px;font-weight:500;color:var(--navy);margin-bottom:7px;"><span class="admin-tag">관리자</span>답변 등록</div><textarea class="fi fta" id="ans-${q.id}" style="min-height:55px;" placeholder="답변..."></textarea><div style="margin-top:6px;"><button class="btn btn-p btn-sm" onclick="submitAns('${q.id}')">등록</button></div></div>`:''}
-        ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){QAS=QAS.filter(x=>x.id!=='${q.id}');sv('qa',QAS);renderQA();renderHome();}">삭제</button></div>`:''}
+        ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){fsDel('qa','${q.id}');}">삭제</button></div>`:''}
       </div>`:''}
     </div>`;}).join(''):'<div class="empty">Q&A가 없습니다.</div>';
 }
-function submitQA(){
+async function submitQA(){
   const f=document.getElementById('q-found')?.value;
   const b=document.getElementById('q-body')?.value.trim();
   if(!f||!b){alert('재단과 질문 내용을 입력해주세요.');return;}
-  QAS.unshift({id:gid(),foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
-  sv('qa',QAS);document.getElementById('q-body').value='';renderQA();renderHome();
+  const id=gid();
+  await fsSet('qa',id,{id,foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
+  document.getElementById('q-body').value='';
 }
-function submitAns(qid){
+async function submitAns(qid){
   const ans=document.getElementById('ans-'+qid)?.value.trim();
   if(!ans){alert('답변을 입력해주세요.');return;}
-  const idx=QAS.findIndex(q=>q.id===qid);if(idx<0)return;
-  QAS[idx]={...QAS[idx],answer:ans,answeredBy:'ARKO',answeredDate:today(),status:'answered'};
-  sv('qa',QAS);renderQA();renderHome();
+  const q=QAS.find(x=>x.id===qid);if(!q)return;
+  await fsSet('qa',qid,{...q,answer:ans,answeredBy:'ARKO',answeredDate:today(),status:'answered'});
 }
 
 /* ════ ADMIN TABLE ════ */
@@ -1051,15 +1172,16 @@ function renderPaySection(id){
   </div>`;
 }
 
-function togglePay(id,field){
-  const idx=FSTATUS.findIndex(x=>x.id===id);if(idx<0)return;
-  FSTATUS[idx][field]=!FSTATUS[idx][field];
-  sv('fstatus',FSTATUS);renderAdminDetail(id);
+async function togglePay(id,field){
+  const fs=FSTATUS.find(x=>x.id===id);if(!fs)return;
+  const updated={...fs,[field]:!fs[field]};
+  await fsSet('fstatus',id,updated);
+  renderAdminDetail(id);
 }
-function savePay(id,field,val){
-  const idx=FSTATUS.findIndex(x=>x.id===id);if(idx<0)return;
-  FSTATUS[idx][field]=val;sv('fstatus',FSTATUS);
-  // 금액 변경 시 요약 즉시 반영
+async function savePay(id,field,val){
+  const fs=FSTATUS.find(x=>x.id===id);if(!fs)return;
+  const updated={...fs,[field]:val};
+  await fsSet('fstatus',id,updated);
   if(field.includes('Amount')) renderAdminDetail(id);
 }
 
@@ -1148,42 +1270,52 @@ function renderAdminDetail(id){
   `;
 }
 
-function changeAdminStage(id,v){
-  const idx=FSTATUS.findIndex(f=>f.id===id);
-  if(idx>=0){FSTATUS[idx].status=v;FSTATUS[idx].eStep=ST_STEP[v]||FSTATUS[idx].eStep;sv('fstatus',FSTATUS);}
+async function changeAdminStage(id,v){
+  const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;
+  await fsSet('fstatus',id,{...fs,status:v,eStep:ST_STEP[v]||fs.eStep,updatedAt:today()});
   renderAdminDetail(id);
 }
-function changeEStep(id,v){
-  const idx=FSTATUS.findIndex(f=>f.id===id);
-  if(idx>=0){FSTATUS[idx].eStep=parseInt(v);sv('fstatus',FSTATUS);}
+async function changeEStep(id,v){
+  const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;
+  await fsSet('fstatus',id,{...fs,eStep:parseInt(v)});
   renderAdminDetail(id);
 }
-function changeExec(id,v){
-  const idx=FSTATUS.findIndex(f=>f.id===id);
-  if(idx>=0){FSTATUS[idx].execRate=Math.min(100,Math.max(0,parseInt(v)||0));sv('fstatus',FSTATUS);}
+async function changeExec(id,v){
+  const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;
+  await fsSet('fstatus',id,{...fs,execRate:Math.min(100,Math.max(0,parseInt(v)||0))});
 }
-function toggleCheck(id,si,ii){
+async function toggleCheck(id,si,ii){
   const a=ADMIN.find(x=>x.id===id);if(!a)return;
-  a.checks[si][ii]=!a.checks[si][ii];sv('admin',ADMIN);renderAdminDetail(id);
+  a.checks[si][ii]=!a.checks[si][ii];
+  await fsSet('admin',id,{...a});renderAdminDetail(id);
 }
-function addIss(id){
+async function addIss(id){
   const inp=document.getElementById(`new-iss-${id}`);if(!inp||!inp.value.trim())return;
   const a=ADMIN.find(x=>x.id===id);if(!a)return;
-  a.issues.push({t:inp.value.trim(),r:false});inp.value='';sv('admin',ADMIN);renderAdminDetail(id);
+  a.issues.push({t:inp.value.trim(),r:false});inp.value='';
+  await fsSet('admin',id,{...a});renderAdminDetail(id);
 }
-function toggleIss(id,i){
+async function toggleIss(id,i){
   const a=ADMIN.find(x=>x.id===id);if(!a)return;
-  a.issues[i].r=!a.issues[i].r;sv('admin',ADMIN);renderAdminDetail(id);
+  a.issues[i].r=!a.issues[i].r;
+  await fsSet('admin',id,{...a});renderAdminDetail(id);
 }
-function delIss(id,i){
+async function delIss(id,i){
   if(!confirm('삭제할까요?'))return;
   const a=ADMIN.find(x=>x.id===id);if(!a)return;
-  a.issues.splice(i,1);sv('admin',ADMIN);renderAdminDetail(id);
+  a.issues.splice(i,1);
+  await fsSet('admin',id,{...a});renderAdminDetail(id);
 }
-function saveMemo(id){
+async function saveMemo(id){
   const a=ADMIN.find(x=>x.id===id);if(!a)return;
-  a.memo=document.getElementById(`memo-${id}`)?.value||'';sv('admin',ADMIN);
+  a.memo=document.getElementById(`memo-${id}`)?.value||'';
+  await fsSet('admin',id,{...a});
   const el=document.getElementById(`memo-ok-${id}`);if(el){el.textContent='저장됨 ✓';setTimeout(()=>el.textContent='',1500);}
+}
+async function toggleIssFromMonitor(fid,i){
+  const a=ADMIN.find(x=>x.id===fid);if(!a)return;
+  a.issues[i].r=true;
+  await fsSet('admin',fid,{...a});
 }
 
 /* ════ PROCESS PAGE ════ */
@@ -1204,7 +1336,7 @@ function renderProcView(id){
       <div class="proc-scroll"><div class="proc-track">${track}</div></div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
         <span style="font-size:12px;color:var(--text2);">단계 변경:</span>
-        <select class="stage-sel" onchange="const idx=FSTATUS.findIndex(x=>x.id==${id});if(idx>=0){FSTATUS[idx].eStep=parseInt(this.value);sv('fstatus',FSTATUS);}renderProcView(${id});">${epOpts}</select>
+        <select class="stage-sel" onchange="const fs=FSTATUS.find(x=>x.id==${id});if(fs){fsSet('fstatus',${id},{...fs,eStep:parseInt(this.value)});}renderProcView(${id});">${epOpts}</select>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:7px;">${cards}</div>`;
@@ -1225,7 +1357,7 @@ function renderIssues(){
       return`<div class="card" style="margin-bottom:8px;">
         <div class="card-hd" style="cursor:pointer;" onclick="showAdminDetail(${f.id});showPage('admin');">${f.id}. ${f.name} →</div>
         ${openIss.map(iss=>`<div class="iss-item iss-err"><span style="flex:1;">${iss.t}</span>
-          <button class="btn btn-sm" onclick="const a=ADMIN.find(x=>x.id===${f.id});if(a){a.issues[${iss.i}].r=true;sv('admin',ADMIN);renderIssues();renderHome();}">해결</button>
+          <button class="btn btn-sm" onclick="toggleIssFromMonitor(${f.id},${iss.i})">해결</button>
         </div>`).join('')}
       </div>`;}).join('');
   }
