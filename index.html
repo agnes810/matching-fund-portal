@@ -362,7 +362,7 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
     <div class="confirm-sub" id="confirm-sub">이 작업은 되돌릴 수 없습니다.</div>
     <div class="confirm-btns">
       <button class="confirm-cancel" onclick="closeConfirm()">취소</button>
-      <button class="confirm-ok" id="confirm-ok-btn">삭제</button>
+      <button class="confirm-ok" id="confirm-ok-btn" onclick="doConfirm()">삭제</button>
     </div>
   </div>
 </div>
@@ -575,7 +575,10 @@ let confirmCallback=null;
 function showConfirm(msg, sub, okLabel, cb){
   document.getElementById('confirm-msg').textContent=msg;
   document.getElementById('confirm-sub').textContent=sub||'이 작업은 되돌릴 수 없습니다.';
-  document.getElementById('confirm-ok-btn').textContent=okLabel||'확인';
+  const okBtn=document.getElementById('confirm-ok-btn');
+  okBtn.textContent=okLabel||'확인';
+  // 로그아웃은 빨간색 아닌 네이비로
+  okBtn.style.background=okLabel==='로그아웃'?'var(--navy)':okLabel==='삭제'?'var(--red)':'var(--navy)';
   confirmCallback=cb;
   document.getElementById('confirm-overlay').classList.remove('hidden');
 }
@@ -585,12 +588,9 @@ function closeConfirm(){
 }
 function doConfirm(){
   document.getElementById('confirm-overlay').classList.add('hidden');
-  if(confirmCallback) confirmCallback();
+  if(typeof confirmCallback==='function') confirmCallback();
   confirmCallback=null;
 }
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('confirm-ok-btn').onclick=doConfirm;
-});
 
 const confirmLogout=()=>showConfirm('관리자 모드에서 로그아웃 하시겠습니까?','참여 재단 모드로 전환됩니다.','로그아웃',logoutAdmin);
 
@@ -1141,28 +1141,33 @@ async function initFirebase(){
       });
     }
   }
-  // 씨드 데이터
-  const [nSnap,cSnap,qSnap]=await Promise.all([db.collection('notices').get(),db.collection('cases').get(),db.collection('qa').get()]);
-  if(nSnap.empty){
-    const seeds=[
-      {id:'n1',type:'important',title:'[필독] 교부신청 일정 및 제출서류 안내',date:'2026-05-20',body:'■ 교부신청 기간: 2026.6.1.(월) ~ 6.15.(금)\n■ 제출방법: e나라도움 내 교부신청서 제출\n■ 필수서류: 교부신청서, 성희롱예방교육 이수확인서, 자체재원 확보 증빙, 실행계획서\n\n문의: 채희진 02-760-4781'},
-      {id:'n2',type:'notice',title:'기부금 증빙 방식 3가지 — 반드시 확인하세요',date:'2026-05-15',body:'후원 협약서만으로는 정산 증빙 불인정.\n반드시 기부금 영수증 + 이체확인증을 함께 확보하셔야 합니다.'},
-    ];
-    for(const n of seeds) await fsSet('notices',n.id,n);
-  }
-  if(cSnap.empty){
-    const seeds=[
-      {id:'c1',type:'기업유치',title:'지역 중소기업 발굴 — 상공회의소 협력 사례',foundation:'충북문화재단',date:'2026-05-18',body:'청주상공회의소 MOU 체결 후 회원사 대상 설명회 진행. 40개 기업 참석 → 8개 기업 결연 성사.',tags:['기업유치','상공회의소']},
-      {id:'c2',type:'정산관리',title:'e나라도움 주 1회 정기 등록 루틴',foundation:'전주문화재단',date:'2026-05-12',body:'매주 금요일 "e나라도움 등록의 날" 지정. 집행내역 취합 후 일괄 등록.',tags:['e나라도움','집행관리']},
-    ];
-    for(const c of seeds) await fsSet('cases',c.id,c);
-  }
-  if(qSnap.empty){
-    const seeds=[
-      {id:'q1',foundation:'노원문화재단',date:'2026-05-19',question:'기업이 예술단체에 직접 후원금을 이체한 경우, 재단은 어떤 서류를 받아야 하나요?',answer:'방식① 해당:\n① 단체 발행 기부금 영수증\n② 기업→단체 이체확인증\n두 가지 모두 재단이 확보·보관하셔야 합니다.',answeredBy:'ARKO',answeredDate:'2026-05-20',status:'answered'},
-      {id:'q2',foundation:'부안군문화재단',date:'2026-05-21',question:'지방비가 부족한 경우 어떻게 해야 하나요?',answer:null,answeredBy:null,answeredDate:null,status:'waiting'},
-    ];
-    for(const q of seeds) await fsSet('qa',q.id,q);
+  // 씨드 데이터 — 최초 1회만 생성 (삭제 후 재생성 방지)
+  const seedFlagSnap = await db.collection('_meta').doc('initialized').get();
+  if(!seedFlagSnap.exists){
+    const [nSnap,cSnap,qSnap]=await Promise.all([db.collection('notices').get(),db.collection('cases').get(),db.collection('qa').get()]);
+    if(nSnap.empty){
+      const seeds=[
+        {id:'n1',type:'important',title:'[필독] 교부신청 일정 및 제출서류 안내',date:'2026-05-20',body:'■ 교부신청 기간: 2026.6.1.(월) ~ 6.15.(금)\n■ 제출방법: e나라도움 내 교부신청서 제출\n■ 필수서류: 교부신청서, 성희롱예방교육 이수확인서, 자체재원 확보 증빙, 실행계획서\n\n문의: 채희진 02-760-4781'},
+        {id:'n2',type:'notice',title:'기부금 증빙 방식 3가지 — 반드시 확인하세요',date:'2026-05-15',body:'후원 협약서만으로는 정산 증빙 불인정.\n반드시 기부금 영수증 + 이체확인증을 함께 확보하셔야 합니다.'},
+      ];
+      for(const n of seeds) await fsSet('notices',n.id,n);
+    }
+    if(cSnap.empty){
+      const seeds=[
+        {id:'c1',type:'기업유치',title:'지역 중소기업 발굴 — 상공회의소 협력 사례',foundation:'충북문화재단',date:'2026-05-18',body:'청주상공회의소 MOU 체결 후 회원사 대상 설명회 진행. 40개 기업 참석 → 8개 기업 결연 성사.',tags:['기업유치','상공회의소']},
+        {id:'c2',type:'정산관리',title:'e나라도움 주 1회 정기 등록 루틴',foundation:'전주문화재단',date:'2026-05-12',body:'매주 금요일 "e나라도움 등록의 날" 지정. 집행내역 취합 후 일괄 등록.',tags:['e나라도움','집행관리']},
+      ];
+      for(const c of seeds) await fsSet('cases',c.id,c);
+    }
+    if(qSnap.empty){
+      const seeds=[
+        {id:'q1',foundation:'노원문화재단',date:'2026-05-19',question:'기업이 예술단체에 직접 후원금을 이체한 경우, 재단은 어떤 서류를 받아야 하나요?',answer:'방식① 해당:\n① 단체 발행 기부금 영수증\n② 기업→단체 이체확인증\n두 가지 모두 재단이 확보·보관하셔야 합니다.',answeredBy:'ARKO',answeredDate:'2026-05-20',status:'answered'},
+        {id:'q2',foundation:'부안군문화재단',date:'2026-05-21',question:'지방비가 부족한 경우 어떻게 해야 하나요?',answer:null,answeredBy:null,answeredDate:null,status:'waiting'},
+      ];
+      for(const q of seeds) await fsSet('qa',q.id,q);
+    }
+    // 초기화 완료 플래그 저장 — 이후 재방문 시 씨드 재생성 방지
+    await db.collection('_meta').doc('initialized').set({done:true, at:today()});
   }
 
   // 실시간 리스너 등록
