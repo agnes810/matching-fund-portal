@@ -198,7 +198,18 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
 @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
 @media(max-width:680px){.two-col{grid-template-columns:1fr;}.info-grid{grid-template-columns:1fr;}.hdr-title{display:none;}}
 
-/* 로딩 스피너 */
+/* 커스텀 확인 모달 */
+.confirm-overlay{position:fixed;inset:0;background:rgba(10,18,32,.6);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.confirm-overlay.hidden{display:none;}
+.confirm-box{background:#fff;border-radius:var(--rl);padding:24px 28px;width:290px;box-shadow:0 8px 32px rgba(0,0,0,.2);text-align:center;}
+.confirm-icon{font-size:26px;margin-bottom:10px;}
+.confirm-msg{font-size:13.5px;font-weight:500;color:var(--text);margin-bottom:6px;}
+.confirm-sub{font-size:12px;color:var(--text2);margin-bottom:18px;}
+.confirm-btns{display:flex;gap:8px;justify-content:center;}
+.confirm-ok{padding:8px 24px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;}
+.confirm-ok:hover{background:#9a2222;}
+.confirm-cancel{padding:8px 20px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;cursor:pointer;}
+.confirm-cancel:hover{background:var(--border);}
 .loading{text-align:center;padding:40px;color:var(--text2);font-size:13px;}
 .loading::before{content:'';display:block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -329,6 +340,19 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
   </div>
 
   <div id="page-issues" class="page"><div id="issues-view"></div></div>
+</div>
+
+<!-- 커스텀 확인 모달 -->
+<div class="confirm-overlay hidden" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑</div>
+    <div class="confirm-msg" id="confirm-msg">삭제하시겠습니까?</div>
+    <div class="confirm-sub" id="confirm-sub">이 작업은 되돌릴 수 없습니다.</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">취소</button>
+      <button class="confirm-ok" id="confirm-ok-btn">삭제</button>
+    </div>
+  </div>
 </div>
 
 <!-- 비밀번호 모달 -->
@@ -503,8 +527,31 @@ const changePw=()=>{
   if(n1!==n2){errEl.textContent='비밀번호가 일치하지 않습니다.';errEl.style.display='block';return;}
   localStorage.setItem(PW_KEY,n1);closePwModal();alert('✅ 비밀번호가 변경되었습니다.');
 };
-const logoutAdmin=()=>setRole('found');
-const confirmLogout=()=>{if(confirm('관리자 모드에서 로그아웃 하시겠습니까?'))logoutAdmin();};
+/* ══════════════════════════════════════
+   커스텀 확인 모달
+══════════════════════════════════════ */
+let confirmCallback=null;
+function showConfirm(msg, sub, okLabel, cb){
+  document.getElementById('confirm-msg').textContent=msg;
+  document.getElementById('confirm-sub').textContent=sub||'이 작업은 되돌릴 수 없습니다.';
+  document.getElementById('confirm-ok-btn').textContent=okLabel||'확인';
+  confirmCallback=cb;
+  document.getElementById('confirm-overlay').classList.remove('hidden');
+}
+function closeConfirm(){
+  document.getElementById('confirm-overlay').classList.add('hidden');
+  confirmCallback=null;
+}
+function doConfirm(){
+  document.getElementById('confirm-overlay').classList.add('hidden');
+  if(confirmCallback) confirmCallback();
+  confirmCallback=null;
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('confirm-ok-btn').onclick=doConfirm;
+});
+
+const confirmLogout=()=>showConfirm('관리자 모드에서 로그아웃 하시겠습니까?','참여 재단 모드로 전환됩니다.','로그아웃',logoutAdmin);
 
 /* ══════════════════════════════════════
    역할 / 네비
@@ -677,7 +724,7 @@ function renderNotices(){
       <div class="li-top"><span class="badge ${n.type==='important'?'bi':'bn'}">${n.type==='important'?'필독':'공지'}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${n.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${exp?'▲':'▼'}</button></div>
       <div class="li-meta">ARKO · ${fmtD(n.date)}</div>
       ${exp?`<div class="li-body">${n.body}</div>`:''}
-      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){fsDel('notices','${n.id}');}">삭제</button></div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="showConfirm('이 공지를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('notices','${n.id}'))">삭제</button></div>`:''}
     </div>`;}).join(''):'<div class="empty">공지 없음</div>';
 }
 async function submitNotice(){
@@ -712,7 +759,7 @@ function renderCases(){
       <div class="li-top"><span class="badge bc">${c.type}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${c.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${exp?'▲':'▼'}</button></div>
       <div class="li-meta"><span class="badge bf" style="font-size:10px;">${c.foundation}</span> · ${fmtD(c.date)}</div>
       ${exp?`<div class="li-body">${c.body}</div><div class="case-tags">${(c.tags||[]).map(t=>`<span class="case-tag">#${t}</span>`).join('')}</div>`:''}
-      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="if(confirm('삭제?')){fsDel('cases','${c.id}');}">삭제</button></div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="showConfirm('이 사례를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('cases','${c.id}'))">삭제</button></div>`:''}
     </div>`;}).join(''):'<div class="empty">공유된 사례가 없습니다.</div>';
 }
 async function submitCase(){
@@ -748,7 +795,7 @@ function renderQA(){
       ${exp?`<div style="margin-top:8px;">
         ${q.answer?`<div class="ans-box"><div class="ans-lbl">ARKO 답변 · ${fmtD(q.answeredDate)}</div><div class="ans-txt">${q.answer}</div></div>`:'<div style="font-size:12px;color:var(--text2);padding:6px 0;">ARKO 검토 중입니다.</div>'}
         ${ROLE==='arko'&&q.status==='waiting'?`<div class="ans-form"><div style="font-size:11.5px;font-weight:500;color:var(--navy);margin-bottom:7px;"><span class="admin-tag">관리자</span>답변 등록</div><textarea class="fi fta" id="ans-${q.id}" style="min-height:55px;" placeholder="답변..."></textarea><div style="margin-top:6px;"><button class="btn btn-p btn-sm" onclick="submitAns('${q.id}')">등록</button></div></div>`:''}
-        ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;"><button class="btn btn-sm btn-d" onclick="if(confirm('이 Q&A를 삭제할까요?')){fsDel('qa','${q.id}');}">🗑 삭제</button></div>`:''}
+        ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;"><button class="btn btn-sm btn-d" onclick="showConfirm('이 Q&A를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('qa','${q.id}'))">🗑 삭제</button></div>`:''}
       </div>`:''}
     </div>`;}).join(''):'<div class="empty">Q&A가 없습니다.</div>';
 }
@@ -955,11 +1002,12 @@ async function toggleIss(id,i){
   renderAdminDetail(id);
 }
 async function delIss(id,i){
-  if(!confirm('삭제할까요?'))return;
-  const a=ADMIN.find(x=>x.id===id);if(!a)return;
-  a.issues.splice(i,1);
-  await fsSet('admin',id,{id:a.id,issues:a.issues,memo:a.memo||'',checksFlat:a.checksFlat||{}});
-  renderAdminDetail(id);
+  showConfirm('이 이슈를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',async()=>{
+    const a=ADMIN.find(x=>x.id===id);if(!a)return;
+    a.issues.splice(i,1);
+    await fsSet('admin',id,{id:a.id,issues:a.issues,memo:a.memo||'',checksFlat:a.checksFlat||{}});
+    renderAdminDetail(id);
+  });
 }
 async function saveMemo(id){
   const a=ADMIN.find(x=>x.id===id);if(!a)return;
