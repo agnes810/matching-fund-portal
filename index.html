@@ -592,6 +592,7 @@ function doConfirm(){
   confirmCallback=null;
 }
 
+const logoutAdmin=()=>setRole('found');
 const confirmLogout=()=>showConfirm('관리자 모드에서 로그아웃 하시겠습니까?','참여 재단 모드로 전환됩니다.','로그아웃',logoutAdmin);
 
 /* ══════════════════════════════════════
