@@ -220,6 +220,17 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
 
 /* 로딩 스피너 */
 .loading{text-align:center;padding:40px;color:var(--text2);font-size:13px;}
+/* 수정 모달 */
+.edit-overlay{position:fixed;inset:0;background:rgba(10,18,32,.72);z-index:998;display:flex;align-items:center;justify-content:center;}
+.edit-overlay.hidden{display:none;}
+.edit-box{background:#fff;border-radius:var(--rl);padding:22px 26px;width:500px;max-width:95vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.22);}
+.edit-box-title{font-size:14px;font-weight:500;color:var(--navy);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--border);}
+.edit-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+/* 확인 버튼 */
+.read-btn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s;font-family:inherit;}
+.read-btn:hover{background:var(--gbg);border-color:var(--green);color:var(--green);}
+.read-btn.on{background:var(--gbg);border-color:var(--green);color:var(--green);font-weight:500;}
+.read-cnt{background:var(--bg3);padding:1px 6px;border-radius:10px;font-size:10px;}
 .loading::before{content:'';display:block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 </style>
@@ -349,6 +360,18 @@ tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
   </div>
 
   <div id="page-issues" class="page"><div id="issues-view"></div></div>
+</div>
+
+<!-- 수정 모달 -->
+<div class="edit-overlay hidden" id="edit-overlay">
+  <div class="edit-box">
+    <div class="edit-box-title" id="edit-modal-title">내용 수정</div>
+    <div id="edit-fields"></div>
+    <div class="edit-btns">
+      <button class="btn" onclick="closeEdit()">취소</button>
+      <button class="btn btn-p" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
 </div>
 
 <!-- 토스트 알림 -->
@@ -761,13 +784,23 @@ function renderNoticeWrite(){
 }
 function renderNotices(){
   document.getElementById('n-cnt').textContent=`총 ${NOTICES.length}건`;
+  const readSet=getReadSet();
   document.getElementById('notice-list').innerHTML=NOTICES.length?NOTICES.map(n=>{
     const k='n_'+n.id;const exp=expanded[k];
+    const isRead=readSet.has(n.id);
     return`<div class="list-item">
       <div class="li-top"><span class="badge ${n.type==='important'?'bi':'bn'}">${n.type==='important'?'필독':'공지'}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${n.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${exp?'▲':'▼'}</button></div>
-      <div class="li-meta">ARKO · ${fmtD(n.date)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px;flex-wrap:wrap;gap:4px;">
+        <div class="li-meta">ARKO · ${fmtD(n.date)}</div>
+        <button class="read-btn ${isRead?'on':''}" onclick="event.stopPropagation();toggleRead('${n.id}');renderNotices();">
+          ${isRead?'✅ 확인완료':'👁 확인하기'} <span class="read-cnt">${n.readCount||0}</span>
+        </button>
+      </div>
       ${exp?`<div class="li-body">${n.body}</div>`:''}
-      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="showConfirm('이 공지를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('notices','${n.id}'))">삭제</button></div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openEdit('notices','${n.id}')">✏ 수정</button>
+        <button class="btn btn-sm btn-d" onclick="event.stopPropagation();showConfirm('이 공지를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('notices','${n.id}'))">삭제</button>
+      </div>`:''}
     </div>`;}).join(''):'<div class="empty">공지 없음</div>';
 }
 async function submitNotice(){
@@ -802,7 +835,10 @@ function renderCases(){
       <div class="li-top"><span class="badge bc">${c.type}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${c.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${exp?'▲':'▼'}</button></div>
       <div class="li-meta"><span class="badge bf" style="font-size:10px;">${c.foundation}</span> · ${fmtD(c.date)}</div>
       ${exp?`<div class="li-body">${c.body}</div><div class="case-tags">${(c.tags||[]).map(t=>`<span class="case-tag">#${t}</span>`).join('')}</div>`:''}
-      ${ROLE==='arko'?`<div style="margin-top:5px;"><button class="btn btn-sm btn-d" onclick="showConfirm('이 사례를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('cases','${c.id}'))">삭제</button></div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openEdit('cases','${c.id}')">✏ 수정</button>
+        <button class="btn btn-sm btn-d" onclick="event.stopPropagation();showConfirm('이 사례를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('cases','${c.id}'))">삭제</button>
+      </div>`:''}
     </div>`;}).join(''):'<div class="empty">공유된 사례가 없습니다.</div>';
 }
 async function submitCase(){
@@ -839,7 +875,10 @@ function renderQA(){
       ${exp?`<div style="margin-top:8px;">
         ${q.answer?`<div class="ans-box"><div class="ans-lbl">ARKO 답변 · ${fmtD(q.answeredDate)}</div><div class="ans-txt">${q.answer}</div></div>`:'<div style="font-size:12px;color:var(--text2);padding:6px 0;">ARKO 검토 중입니다.</div>'}
         ${ROLE==='arko'&&q.status==='waiting'?`<div class="ans-form"><div style="font-size:11.5px;font-weight:500;color:var(--navy);margin-bottom:7px;"><span class="admin-tag">관리자</span>답변 등록</div><textarea class="fi fta" id="ans-${q.id}" style="min-height:55px;" placeholder="답변..."></textarea><div style="margin-top:6px;"><button class="btn btn-p btn-sm" onclick="submitAns('${q.id}')">등록</button></div></div>`:''}
-        ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;"><button class="btn btn-sm btn-d" onclick="showConfirm('이 Q&A를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('qa','${q.id}'))">🗑 삭제</button></div>`:''}
+        ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openEdit('qa','${q.id}')">✏ 수정</button>
+          <button class="btn btn-sm btn-d" onclick="showConfirm('이 Q&A를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('qa','${q.id}'))">🗑 삭제</button>
+        </div>`:''}
       </div>`:''}
     </div>`;}).join(''):'<div class="empty">Q&A가 없습니다.</div>';
 }
@@ -851,6 +890,102 @@ async function submitQA(){
   await fsSet('qa',newId,{id:newId,foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
   document.getElementById('q-body').value='';
 }
+/* ══════════════════════════════════════
+   수정 모달
+══════════════════════════════════════ */
+let _editCol=null,_editId=null,_editData=null;
+
+function openEdit(col,id){
+  _editCol=col;_editId=id;
+  if(col==='notices'){
+    const n=NOTICES.find(x=>x.id===id);if(!n)return;
+    _editData={...n};
+    document.getElementById('edit-modal-title').textContent='공지 수정';
+    document.getElementById('edit-fields').innerHTML=`
+      <div class="form-row"><div class="form-lbl">유형</div>
+        <select class="fi" id="ef-type" style="width:auto;">
+          <option value="notice" ${n.type==='notice'?'selected':''}>일반</option>
+          <option value="important" ${n.type==='important'?'selected':''}>필독</option>
+        </select>
+      </div>
+      <div class="form-row"><div class="form-lbl">제목</div><input class="fi" id="ef-1" style="width:100%;" value="${n.title.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}"/></div>
+      <div class="form-row"><div class="form-lbl">내용</div><textarea class="fi fta" id="ef-2" style="min-height:120px;">${n.body}</textarea></div>`;
+  } else if(col==='cases'){
+    const c=CASES.find(x=>x.id===id);if(!c)return;
+    _editData={...c};
+    document.getElementById('edit-modal-title').textContent='사례 수정';
+    document.getElementById('edit-fields').innerHTML=`
+      <div class="form-row"><div class="form-lbl">유형</div>
+        <select class="fi" id="ef-type" style="width:auto;">
+          <option value="기업유치" ${c.type==='기업유치'?'selected':''}>기업 유치</option>
+          <option value="공모운영" ${c.type==='공모운영'?'selected':''}>공모 운영</option>
+          <option value="정산관리" ${c.type==='정산관리'?'selected':''}>정산·회계</option>
+          <option value="예술단체" ${c.type==='예술단체'?'selected':''}>예술단체 지원</option>
+          <option value="기타" ${c.type==='기타'?'selected':''}>기타</option>
+        </select>
+      </div>
+      <div class="form-row"><div class="form-lbl">제목</div><input class="fi" id="ef-1" style="width:100%;" value="${c.title.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}"/></div>
+      <div class="form-row"><div class="form-lbl">내용</div><textarea class="fi fta" id="ef-2" style="min-height:120px;">${c.body}</textarea></div>
+      <div class="form-row"><div class="form-lbl">태그 (쉼표 구분)</div><input class="fi" id="ef-3" style="width:100%;" value="${(c.tags||[]).join(', ')}"/></div>`;
+  } else if(col==='qa'){
+    const q=QAS.find(x=>x.id===id);if(!q)return;
+    _editData={...q};
+    document.getElementById('edit-modal-title').textContent='Q&A 수정';
+    document.getElementById('edit-fields').innerHTML=`
+      <div class="form-row"><div class="form-lbl">질문 내용</div><textarea class="fi fta" id="ef-1" style="min-height:80px;">${q.question}</textarea></div>
+      ${q.answer!==null&&q.answer!==undefined?`<div class="form-row"><div class="form-lbl">답변 내용</div><textarea class="fi fta" id="ef-2" style="min-height:80px;">${q.answer||''}</textarea></div>`:''}`;
+  }
+  document.getElementById('edit-overlay').classList.remove('hidden');
+}
+
+function closeEdit(){
+  document.getElementById('edit-overlay').classList.add('hidden');
+  _editCol=null;_editId=null;_editData=null;
+}
+
+async function saveEdit(){
+  if(!_editCol||!_editId||!_editData){closeEdit();return;}
+  let updated={..._editData};
+  if(_editCol==='notices'){
+    updated.type=document.getElementById('ef-type')?.value||updated.type;
+    updated.title=document.getElementById('ef-1')?.value.trim()||updated.title;
+    updated.body=document.getElementById('ef-2')?.value.trim()||updated.body;
+  } else if(_editCol==='cases'){
+    updated.type=document.getElementById('ef-type')?.value||updated.type;
+    updated.title=document.getElementById('ef-1')?.value.trim()||updated.title;
+    updated.body=document.getElementById('ef-2')?.value.trim()||updated.body;
+    updated.tags=(document.getElementById('ef-3')?.value||'').split(',').map(t=>t.trim()).filter(Boolean);
+  } else if(_editCol==='qa'){
+    updated.question=document.getElementById('ef-1')?.value.trim()||updated.question;
+    const ansEl=document.getElementById('ef-2');
+    if(ansEl) updated.answer=ansEl.value.trim();
+  }
+  await fsSet(_editCol,_editId,updated);
+  closeEdit();
+  showToast('✅ 수정되었습니다.');
+}
+
+/* ══════════════════════════════════════
+   공지 확인(읽음) 기능
+══════════════════════════════════════ */
+const READ_KEY='mfp_read_2026';
+function getReadSet(){try{return new Set(JSON.parse(localStorage.getItem(READ_KEY)||'[]'));}catch(e){return new Set();}}
+async function toggleRead(nid){
+  const s=getReadSet();
+  const n=NOTICES.find(x=>x.id===nid);if(!n)return;
+  if(s.has(nid)){
+    s.delete(nid);
+    localStorage.setItem(READ_KEY,JSON.stringify([...s]));
+    await fsSet('notices',nid,{...n,readCount:Math.max(0,(n.readCount||1)-1)});
+    showToast('확인을 취소했습니다.');
+  } else {
+    s.add(nid);
+    localStorage.setItem(READ_KEY,JSON.stringify([...s]));
+    await fsSet('notices',nid,{...n,readCount:(n.readCount||0)+1});
+    showToast('✅ 확인했습니다!');
+  }
+}
+
 async function submitAns(qid){
   const ans=document.getElementById('ans-'+qid)?.value.trim();
   if(!ans){showToast('⚠ 답변 내용을 입력해주세요.');return;}
