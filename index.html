@@ -1310,22 +1310,22 @@ async function initFirebase(){
 
   // 실시간 리스너 등록
   db.collection('fstatus').onSnapshot(snap=>{
-    FSTATUS=FOUNDS.map(f=>{
-      const d=snap.docs.find(x=>parseInt(x.id)===f.id);
-      return d?{id:f.id,...d.data()}:{id:f.id,status:'대기',eStep:0,execRate:0,memo:'',updatedAt:today(),pay1Applied:false,pay1Date:'',pay1Amount:0,pay1Done:false,pay2Applied:false,pay2Date:'',pay2Amount:0,pay2Done:false};
-    });
+    // Firebase 데이터만 신뢰 — 없는 문서는 화면에서 제외 (절대 코드 초기값으로 덮어쓰지 않음)
+    const fsData={};
+    snap.docs.forEach(d=>fsData[parseInt(d.id)]={id:parseInt(d.id),...d.data()});
+    FSTATUS=FOUNDS.map(f=>fsData[f.id]||null).filter(Boolean);
     refreshCurrent();
   });
   db.collection('admin').onSnapshot(snap=>{
-    ADMIN=FOUNDS.map(f=>{
-      const d=snap.docs.find(x=>parseInt(x.id)===f.id);
-      if(!d)return{id:f.id,checks:CL_SECS.map(s=>s.items.map(()=>false)),checksFlat:{},issues:[],memo:''};
-      const a={id:f.id,...d.data()};
-      // checksFlat → checks 2차원 배열로 복원
+    // Firebase 데이터만 신뢰 — 절대 코드 초기값으로 덮어쓰지 않음
+    const adData={};
+    snap.docs.forEach(d=>{
+      const a={id:parseInt(d.id),...d.data()};
       const flat=a.checksFlat||{};
       a.checks=CL_SECS.map((sec,si)=>sec.items.map((_,ii)=>!!flat[`c_${si}_${ii}`]));
-      return a;
+      adData[parseInt(d.id)]=a;
     });
+    ADMIN=FOUNDS.map(f=>adData[f.id]||{id:f.id,checks:CL_SECS.map(s=>s.items.map(()=>false)),checksFlat:{},issues:[],memo:''});
     refreshCurrent();
   });
   db.collection('notices').onSnapshot(snap=>{
