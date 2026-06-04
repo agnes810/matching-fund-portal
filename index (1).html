@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 예술기업매칭펀드 통합 포털</title>
+
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// Firebase SDK 로드 확인
+window.firebaseReady = typeof firebase !== 'undefined';
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+:root{
+  --navy:#1a2d4d;--navy2:#243d6a;--gold:#c9a84c;--gold2:#e8c97a;
+  --bg:#f4f5f7;--bg2:#fff;--bg3:#eef0f3;
+  --text:#1a2535;--text2:#5a6478;--text3:#9aa0ad;--border:#dde1e9;
+  --green:#2d7a4f;--gbg:#e8f5ee;
+  --amber:#8a5c0a;--abg:#fdf3dc;
+  --red:#b02a2a;--rbg:#fdeaea;
+  --blue:#1a4f8a;--bbg:#e6eef8;
+  --purple:#5b3fa0;--pbg:#eeebf8;
+  --teal:#0f6e56;--tbg:#e1f5ee;
+  --gray:#5a6478;--gbg2:#f0f1f4;
+  --r:8px;--rl:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.6;min-height:100vh;}
+
+.hdr{background:var(--navy);color:#fff;padding:0 20px;display:flex;align-items:center;gap:12px;height:54px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.hdr-logo{font-size:10.5px;color:var(--gold);font-weight:700;letter-spacing:.05em;white-space:nowrap;}
+.hdr-title{font-size:13.5px;font-weight:500;flex:1;}
+.role-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+.role-hint{font-size:10px;color:rgba(255,255,255,.4);}
+.role-toggle{display:flex;gap:3px;}
+.role-btn{padding:4px 11px;border-radius:20px;border:1px solid rgba(255,255,255,.2);background:transparent;color:rgba(255,255,255,.55);font-size:11px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.role-btn.active{background:var(--gold);border-color:var(--gold);color:var(--navy);font-weight:500;}
+
+.nav-bar{background:var(--navy2);display:flex;padding:0 20px;overflow-x:auto;}
+.nav-bar::-webkit-scrollbar{display:none;}
+.nav-btn{padding:9px 14px;font-size:12px;color:rgba(255,255,255,.5);border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;font-family:inherit;transition:all .15s;}
+.nav-btn:hover{color:rgba(255,255,255,.8);}
+.nav-btn.active{color:var(--gold2);border-bottom-color:var(--gold);font-weight:500;}
+.nav-sep{width:1px;background:rgba(255,255,255,.15);margin:7px 4px;}
+
+.main{padding:18px 20px;max-width:1200px;margin:0 auto;}
+.page{display:none;}.page.active{display:block;}
+
+.card{background:var(--bg2);border-radius:var(--rl);border:1px solid var(--border);padding:14px 16px;margin-bottom:11px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.card-hd{font-size:13px;font-weight:500;margin-bottom:11px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:9px;margin-bottom:14px;}
+.stat{background:var(--bg2);border-radius:var(--r);border:1px solid var(--border);padding:12px 14px;}
+.stat-v{font-size:24px;font-weight:700;color:var(--navy);line-height:1;}
+.stat-l{font-size:11px;color:var(--text2);margin-top:3px;}
+
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;}
+.bn{background:var(--bbg);color:var(--blue);}
+.bi{background:var(--rbg);color:var(--red);}
+.bc{background:var(--gbg);color:var(--green);}
+.bw{background:var(--abg);color:var(--amber);}
+.ba{background:var(--gbg);color:var(--green);}
+.bf{background:var(--gbg2);color:var(--gray);}
+
+.spill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;}
+.s-wait{background:#F1EFE8;color:#5F5E5A;}
+.s-review{background:var(--abg);color:var(--amber);}
+.s-reg{background:var(--bbg);color:var(--blue);}
+.s-apply{background:var(--pbg);color:var(--purple);}
+.s-decided{background:var(--gbg);color:var(--green);}
+.s-exec{background:var(--tbg);color:var(--teal);}
+.s-settle{background:#faece7;color:#993c1d;}
+.s-done{background:var(--navy);color:#fff;}
+.sdot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.75;}
+
+.tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:#f8f9fb;padding:7px 10px;font-weight:500;color:var(--text2);font-size:11px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:#f0f4fb;}
+tbody td{padding:7px 10px;color:var(--text);vertical-align:middle;}
+
+.filter-bar{display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap;align-items:center;}
+.filter-bar input,.filter-bar select,.fi{padding:6px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:12.5px;font-family:inherit;background:#fff;color:var(--text);}
+.filter-bar input{flex:1;min-width:110px;}
+.fi:focus{outline:none;border-color:var(--navy);}
+.fta{min-height:70px;resize:vertical;width:100%;}
+
+.prog{flex:1;height:5px;border-radius:3px;background:var(--bg3);overflow:hidden;}
+.prog-f{height:100%;border-radius:3px;background:var(--navy);transition:width .3s;}
+
+.list-item{padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.list-item:last-child{border-bottom:none;}
+.list-item:hover .li-title{color:var(--navy);}
+.li-top{display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap;}
+.li-title{font-size:12.5px;font-weight:500;transition:color .15s;}
+.li-meta{font-size:11px;color:var(--text2);}
+.li-body{font-size:12px;color:var(--text2);white-space:pre-wrap;margin-top:7px;line-height:1.6;}
+.exp-btn{font-size:11px;color:var(--text2);border:none;background:none;cursor:pointer;padding:2px 0;font-family:inherit;margin-left:auto;flex-shrink:0;}
+.ans-box{background:var(--bg3);border-left:3px solid var(--navy);border-radius:0 var(--r) var(--r) 0;padding:9px 12px;margin-top:8px;}
+.ans-lbl{font-size:11px;color:var(--navy);font-weight:500;margin-bottom:3px;}
+.ans-txt{font-size:12px;white-space:pre-wrap;}
+.ans-form{background:var(--bg3);border-radius:var(--r);padding:10px;margin-top:8px;}
+.case-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
+.case-tag{padding:2px 6px;border-radius:20px;font-size:10.5px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);}
+.empty{text-align:center;padding:28px;font-size:12.5px;color:var(--text3);}
+
+.proc-scroll{overflow-x:auto;padding-bottom:5px;}
+.proc-track{display:flex;min-width:860px;}
+.step-box{flex:1;text-align:center;position:relative;}
+.snum{width:26px;height:26px;border-radius:50%;background:var(--bg3);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;margin:0 auto 3px;color:var(--text2);position:relative;z-index:1;}
+.sname{font-size:9px;color:var(--text2);line-height:1.3;}
+.step-box::after{content:'';position:absolute;top:13px;right:-1px;width:50%;height:1px;background:var(--border);z-index:0;}
+.step-box::before{content:'';position:absolute;top:13px;left:0;width:50%;height:1px;background:var(--border);z-index:0;}
+.step-box:first-child::before,.step-box:last-child::after{display:none;}
+.step-box.done .snum{background:var(--gbg);border-color:var(--green);color:var(--green);}
+.step-box.cur .snum{background:var(--abg);border-color:var(--amber);color:var(--amber);}
+
+.cl-sec{margin-bottom:13px;}
+.cl-sec-title{font-size:11.5px;font-weight:700;padding:6px 10px;border-radius:var(--r);margin-bottom:7px;display:flex;align-items:center;gap:7px;}
+.cl-sec-title.ta{background:var(--bbg);color:var(--blue);}
+.cl-sec-title.tb{background:var(--gbg);color:var(--green);}
+.cl-sec-title.tc{background:var(--abg);color:var(--amber);}
+.cl-sec-title.td{background:var(--gbg2);color:var(--gray);}
+.cl-cnt{margin-left:auto;font-size:11px;background:rgba(255,255,255,.6);padding:1px 7px;border-radius:10px;}
+.cl-list{list-style:none;}
+.cl-item{display:flex;align-items:flex-start;gap:9px;padding:6px 3px;border-bottom:1px solid var(--border);}
+.cl-item:last-child{border-bottom:none;}
+.chk{width:17px;height:17px;border-radius:4px;border:1.5px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px;background:#fff;transition:all .15s;user-select:none;}
+.chk.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.cl-txt{font-size:12.5px;color:var(--text);line-height:1.5;}
+.cl-txt.done{text-decoration:line-through;color:var(--text3);}
+.cl-note{font-size:11px;color:var(--text3);margin-top:2px;}
+.cl-warn{font-size:11px;color:var(--red);margin-top:2px;font-weight:500;}
+
+.iss-item{display:flex;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:var(--r);margin-bottom:5px;font-size:12.5px;}
+.iss-err{background:var(--rbg);color:var(--red);}
+.iss-ok{background:var(--gbg);color:var(--green);}
+
+.btn{padding:6px 13px;border-radius:var(--r);border:1px solid var(--border);background:#fff;color:var(--text);font-size:12px;cursor:pointer;font-family:inherit;transition:all .12s;}
+.btn:hover{background:var(--bg3);}
+.btn-p{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn-p:hover{background:var(--navy2);}
+.btn-sm{padding:3px 8px;font-size:11px;}
+.btn-d{background:var(--rbg);color:var(--red);border-color:#f0b8b8;}
+.back-btn{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text2);border:none;background:none;cursor:pointer;margin-bottom:11px;font-family:inherit;padding:0;}
+.back-btn:hover{color:var(--text);}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:13px;}
+.info-r{display:flex;flex-direction:column;gap:2px;}
+.info-l{font-size:11px;color:var(--text2);}
+.info-v{font-size:13px;font-weight:500;}
+.memo-a{width:100%;border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;font-size:12.5px;font-family:inherit;resize:vertical;min-height:65px;color:var(--text);background:#fff;margin-top:5px;}
+.memo-a:focus{outline:none;border-color:var(--navy);}
+.add-row{display:flex;gap:7px;margin-top:7px;}
+.add-row input{flex:1;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.sec-hdr{font-size:11px;font-weight:500;color:var(--text2);letter-spacing:.04em;margin-bottom:6px;}
+.stage-sel{padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;font-family:inherit;color:var(--text);background:#fff;cursor:pointer;}
+.legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+.leg{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);}
+.leg-dot{width:9px;height:9px;border-radius:50%;}
+.form-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.form-lbl{font-size:11.5px;font-weight:500;color:var(--text2);}
+.exec-inp{width:60px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;font-family:inherit;color:var(--text);background:#fff;}
+.admin-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;background:var(--navy);color:var(--gold);letter-spacing:.04em;margin-right:5px;}
+.mini-dot{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--border);display:inline-block;}
+.mini-dot.done{background:var(--green);border-color:var(--green);}
+.mini-dot.cur{background:var(--amber);border-color:var(--amber);}
+.mini-line{width:7px;height:1.5px;background:var(--border);display:inline-block;vertical-align:middle;}
+.mini-line.done{background:var(--green);}
+.ie-lbl{font-size:10.5px;color:var(--text2);margin-bottom:3px;}
+.ie-wrap{background:var(--bg3);border-radius:var(--r);padding:10px;margin-top:7px;}
+.ie-wrap select,.ie-wrap input,.ie-wrap textarea{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;font-family:inherit;color:var(--text);background:#fff;margin-bottom:6px;}
+.ie-wrap textarea{min-height:45px;resize:vertical;}
+
+/* 비밀번호 모달 */
+.pw-overlay{position:fixed;inset:0;background:rgba(10,18,32,.75);z-index:999;display:flex;align-items:center;justify-content:center;}
+.pw-overlay.hidden{display:none;}
+.pw-box{background:#fff;border-radius:var(--rl);padding:28px 32px;width:310px;box-shadow:0 8px 32px rgba(0,0,0,.22);}
+.pw-icon{font-size:28px;margin-bottom:10px;}
+.pw-logo{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.05em;margin-bottom:5px;}
+.pw-title{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.pw-sub{font-size:11.5px;color:var(--text2);margin-bottom:18px;}
+.pw-inp{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;color:var(--text);margin-bottom:10px;}
+.pw-inp:focus{outline:none;border-color:var(--navy);}
+.pw-inp.err{border-color:var(--red);animation:shake .3s;}
+.pw-btn{width:100%;padding:10px;background:var(--navy);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;}
+.pw-btn:hover{background:var(--navy2);}
+.pw-err-msg{font-size:11.5px;color:var(--red);margin-bottom:8px;display:none;}
+.pw-err-msg.show{display:block;}
+.pw-cancel{width:100%;padding:7px;background:none;color:var(--text2);border:none;font-size:12px;font-family:inherit;cursor:pointer;margin-top:6px;}
+.pw-cancel:hover{color:var(--text);}
+.pw-chg-wrap{margin-top:14px;padding-top:13px;border-top:1px solid var(--border);}
+.pw-chg-title{font-size:11.5px;font-weight:500;color:var(--text2);margin-bottom:7px;}
+.admin-bar{background:var(--navy2);padding:4px 20px;display:none;align-items:center;justify-content:flex-end;gap:12px;}
+.admin-bar.show{display:flex;}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
+@media(max-width:680px){.two-col{grid-template-columns:1fr;}.info-grid{grid-template-columns:1fr;}.hdr-title{display:none;}}
+
+/* 커스텀 확인 모달 */
+.confirm-overlay{position:fixed;inset:0;background:rgba(10,18,32,.6);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.confirm-overlay.hidden{display:none;}
+.confirm-box{background:#fff;border-radius:var(--rl);padding:24px 28px;width:290px;box-shadow:0 8px 32px rgba(0,0,0,.2);text-align:center;}
+.confirm-icon{font-size:26px;margin-bottom:10px;}
+.confirm-msg{font-size:13.5px;font-weight:500;color:var(--text);margin-bottom:6px;}
+.confirm-sub{font-size:12px;color:var(--text2);margin-bottom:18px;}
+.confirm-btns{display:flex;gap:8px;justify-content:center;}
+.confirm-ok{padding:8px 24px;background:var(--red);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-family:inherit;font-weight:500;cursor:pointer;}
+.confirm-ok:hover{background:#9a2222;}
+.confirm-cancel{padding:8px 20px;background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;cursor:pointer;}
+.confirm-cancel:hover{background:var(--border);}
+/* 토스트 알림 */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:11px 22px;border-radius:var(--rl);font-size:13px;font-weight:500;z-index:2000;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* 로딩 스피너 */
+.loading{text-align:center;padding:40px;color:var(--text2);font-size:13px;}
+/* 수정 모달 */
+.edit-overlay{position:fixed;inset:0;background:rgba(10,18,32,.72);z-index:998;display:flex;align-items:center;justify-content:center;}
+.edit-overlay.hidden{display:none;}
+.edit-box{background:#fff;border-radius:var(--rl);padding:22px 26px;width:500px;max-width:95vw;max-height:88vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.22);}
+.edit-box-title{font-size:14px;font-weight:500;color:var(--navy);margin-bottom:14px;padding-bottom:9px;border-bottom:1px solid var(--border);}
+.edit-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+/* 확인 버튼 */
+.read-btn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:11px;color:var(--text2);cursor:pointer;transition:all .15s;font-family:inherit;}
+.read-btn:hover{background:var(--gbg);border-color:var(--green);color:var(--green);}
+.read-btn.on{background:var(--gbg);border-color:var(--green);color:var(--green);font-weight:500;}
+.read-cnt{background:var(--bg3);padding:1px 6px;border-radius:10px;font-size:10px;}
+.loading::before{content:'';display:block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--navy);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="hdr">
+  <div>
+    <div class="hdr-logo">ARKO · 예술후원·홍보센터</div>
+    <div class="hdr-title">2026 예술기업매칭펀드 통합 포털</div>
+  </div>
+  <div class="role-wrap">
+    <div class="role-hint" id="role-hint">참여 재단으로 접속 중</div>
+    <div class="role-toggle">
+      <button class="role-btn" id="arko-btn" onclick="requestAdmin()">🔐 관리자 로그인</button>
+      <button class="role-btn active" id="found-btn" onclick="logoutAdmin()">🏛 참여 재단</button>
+    </div>
+  </div>
+</div>
+
+<!-- 관리자 바 -->
+<div class="admin-bar" id="admin-bar">
+  <span style="font-size:11px;color:var(--gold);">🔐 관리자 모드 접속 중</span>
+  <button onclick="showPwChange()" style="font-size:11px;color:rgba(255,255,255,.6);background:none;border:none;cursor:pointer;font-family:inherit;">비밀번호 변경</button>
+  <button onclick="confirmLogout()" style="font-size:11px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:3px 12px;cursor:pointer;font-family:inherit;">🚪 로그아웃</button>
+</div>
+
+<!-- 네비게이션 -->
+<div class="nav-bar" id="nav-bar"></div>
+
+<!-- 메인 -->
+<div class="main">
+  <div id="page-home" class="page active">
+    <div class="stat-grid" id="home-stats"><div class="loading"></div></div>
+    <div class="two-col">
+      <div><div class="sec-hdr">최신 공지</div><div class="card" id="home-notices"><div class="loading"></div></div></div>
+      <div><div class="sec-hdr">최신 Q&A</div><div class="card" id="home-qa"><div class="loading"></div></div></div>
+    </div>
+    <div style="margin-top:10px;"><div class="sec-hdr">최신 사례 공유</div><div class="card" id="home-cases"><div class="loading"></div></div></div>
+  </div>
+
+  <div id="page-status" class="page">
+    <div class="card">
+      <div class="card-hd"><span>재단별 사업 진행 현황</span><span id="status-date" style="font-size:11px;color:var(--text2);font-weight:400;"></span></div>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:#9aa0ad;"></div>대기</div>
+        <div class="leg"><div class="leg-dot" style="background:#8a5c0a;"></div>사전검토중</div>
+        <div class="leg"><div class="leg-dot" style="background:#1a4f8a;"></div>사업등록중</div>
+        <div class="leg"><div class="leg-dot" style="background:#5b3fa0;"></div>교부신청중</div>
+        <div class="leg"><div class="leg-dot" style="background:#2d7a4f;"></div>교부결정</div>
+        <div class="leg"><div class="leg-dot" style="background:#0f6e56;"></div>집행중</div>
+        <div class="leg"><div class="leg-dot" style="background:#993c1d;"></div>정산중</div>
+        <div class="leg"><div class="leg-dot" style="background:#1a2d4d;"></div>완료</div>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th style="width:24px;">No</th><th style="width:130px;">재단명</th><th style="width:50px;">유형</th>
+          <th style="width:105px;">현재 상태</th><th style="width:70px;">1차 교부</th><th style="width:70px;">2차 교부</th>
+          <th style="width:160px;">e나라도움 단계</th><th style="width:60px;">집행률</th>
+          <th style="width:110px;">비고</th><th id="st-act-th" style="width:44px;"></th>
+        </tr></thead>
+        <tbody id="status-tbody"><tr><td colspan="10"><div class="loading"></div></td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div id="page-notice" class="page">
+    <div id="notice-write-wrap"></div>
+    <div class="card"><div class="card-hd"><span>전체 공지사항</span><span id="n-cnt" style="font-size:11px;color:var(--text2);font-weight:400;"></span></div><div id="notice-list"><div class="loading"></div></div></div>
+  </div>
+
+  <div id="page-cases" class="page">
+    <div id="case-write-wrap"></div>
+    <div class="card">
+      <div class="card-hd"><span>사업 운영 사례 공유</span></div>
+      <div class="filter-bar">
+        <select onchange="cFilter=this.value;renderCases()">
+          <option value="">전체</option><option value="기업유치">기업 유치</option><option value="공모운영">공모 운영</option>
+          <option value="정산관리">정산·회계</option><option value="예술단체">예술단체 지원</option><option value="기타">기타</option>
+        </select>
+      </div>
+      <div id="case-list"><div class="loading"></div></div>
+    </div>
+  </div>
+
+  <div id="page-qa" class="page">
+    <div id="qa-write-wrap"></div>
+    <div class="card">
+      <div class="card-hd"><span>Q&A 게시판</span><span style="font-size:11px;color:var(--text2);font-weight:400;">답변 후 전체 열람 가능</span></div>
+      <div class="filter-bar">
+        <select onchange="qFilter=this.value;renderQA()"><option value="">전체</option><option value="waiting">대기</option><option value="answered">답변완료</option></select>
+      </div>
+      <div id="qa-list"><div class="loading"></div></div>
+    </div>
+  </div>
+
+  <div id="page-admin" class="page">
+    <div id="admin-list-wrap">
+      <div class="filter-bar">
+        <input type="text" placeholder="재단명 검색..." oninput="aText=this.value;renderAdminTable()" />
+        <select onchange="aStage=this.value;renderAdminTable()">
+          <option value="">전체 단계</option><option>대기</option><option>사전검토중</option><option>사업등록중</option>
+          <option>교부신청중</option><option>교부결정</option><option>집행중</option><option>정산중</option><option>완료</option>
+        </select>
+      </div>
+      <div class="tbl-wrap"><table>
+        <thead><tr>
+          <th style="width:24px;">No</th><th style="width:130px;">재단명</th><th style="width:50px;">유형</th>
+          <th style="width:85px;">지원결정액</th><th style="width:95px;">단계</th>
+          <th style="width:70px;">1차 교부</th><th style="width:70px;">2차 교부</th>
+          <th style="width:55px;">집행률</th><th style="width:60px;">체크리스트</th><th style="width:48px;">이슈</th>
+        </tr></thead>
+        <tbody id="admin-tbody"><tr><td colspan="10"><div class="loading"></div></td></tr></tbody>
+      </table></div>
+    </div>
+    <div id="admin-detail-wrap" style="display:none;"></div>
+  </div>
+
+  <div id="page-process" class="page">
+    <div class="card" style="margin-bottom:11px;">
+      <select onchange="renderProcView(this.value)" id="proc-sel" style="min-width:200px;padding:6px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:12.5px;font-family:inherit;background:#fff;color:var(--text);">
+        <option value="">재단을 선택하세요...</option>
+      </select>
+    </div>
+    <div id="proc-view"></div>
+  </div>
+
+  <div id="page-issues" class="page"><div id="issues-view"></div></div>
+</div>
+
+<!-- 수정 모달 -->
+<div class="edit-overlay hidden" id="edit-overlay">
+  <div class="edit-box">
+    <div class="edit-box-title" id="edit-modal-title">내용 수정</div>
+    <div id="edit-fields"></div>
+    <div class="edit-btns">
+      <button class="btn" onclick="closeEdit()">취소</button>
+      <button class="btn btn-p" onclick="saveEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 알림 -->
+<div class="toast" id="toast"></div>
+
+<!-- 커스텀 확인 모달 -->
+<div class="confirm-overlay hidden" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑</div>
+    <div class="confirm-msg" id="confirm-msg">삭제하시겠습니까?</div>
+    <div class="confirm-sub" id="confirm-sub">이 작업은 되돌릴 수 없습니다.</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">취소</button>
+      <button class="confirm-ok" id="confirm-ok-btn" onclick="doConfirm()">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- 비밀번호 모달 -->
+<div class="pw-overlay hidden" id="pw-overlay">
+  <div class="pw-box">
+    <div class="pw-icon">🔐</div>
+    <div class="pw-logo">ARKO · 예술후원·홍보센터</div>
+    <div class="pw-title">관리자 인증</div>
+    <div class="pw-sub">관리자 전용 기능에 접근하려면<br>비밀번호를 입력하세요.</div>
+    <input type="password" class="pw-inp" id="pw-inp" placeholder="비밀번호" onkeydown="if(event.key==='Enter')checkPw()" />
+    <div class="pw-err-msg" id="pw-err">비밀번호가 올바르지 않습니다.</div>
+    <button class="pw-btn" onclick="checkPw()">확인</button>
+    <button class="pw-cancel" onclick="closePwModal()">취소</button>
+    <div class="pw-chg-wrap" id="pw-chg-wrap" style="display:none;">
+      <div class="pw-chg-title">🔑 비밀번호 변경</div>
+      <input type="password" class="pw-inp" id="pw-new1" placeholder="새 비밀번호" style="margin-bottom:6px;" />
+      <input type="password" class="pw-inp" id="pw-new2" placeholder="새 비밀번호 확인" />
+      <div class="pw-err-msg" id="pw-chg-err"></div>
+      <button class="pw-btn" onclick="changePw()" style="background:var(--green);">변경 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   FIREBASE 초기화
+══════════════════════════════════════ */
+if(typeof firebase === 'undefined'){
+  document.write('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"><\/script>');
+  document.write('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"><\/script>');
+}
+const firebaseConfig = {
+  apiKey: "AIzaSyC6TXw1mEEtA6pETAhUv7DxDfgAc9MosQ8",
+  authDomain: "matching-fund-2026.firebaseapp.com",
+  projectId: "matching-fund-2026",
+  storageBucket: "matching-fund-2026.firebasestorage.app",
+  messagingSenderId: "434597248558",
+  appId: "1:434597248558:web:478c2a47fd5f8ffea069bf"
+};
+if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ══════════════════════════════════════
+   상수 데이터
+══════════════════════════════════════ */
+const FOUNDS=[
+  {id:1,name:"대구문화예술진흥원",type:"광역",amount:130000000,ncas:"202637126"},
+  {id:2,name:"대전문화재단",type:"광역",amount:52000000,ncas:"202636702"},
+  {id:3,name:"전라남도문화재단",type:"광역",amount:195000000,ncas:"202636704"},
+  {id:4,name:"광주문화재단",type:"광역",amount:65000000,ncas:"202636705"},
+  {id:5,name:"구로문화재단",type:"기초",amount:34000000,ncas:"202637521"},
+  {id:6,name:"노원문화재단",type:"기초",amount:176000000,ncas:"202637651"},
+  {id:7,name:"부안군문화재단",type:"인구감소",amount:81000000,ncas:"202636783"},
+  {id:8,name:"관악문화재단",type:"기초",amount:26000000,ncas:"202637644"},
+  {id:9,name:"부천문화재단",type:"기초",amount:13000000,ncas:"202637554"},
+  {id:10,name:"울산문화관광재단",type:"광역",amount:124800000,ncas:"202637642"},
+  {id:11,name:"춘천문화재단",type:"기초",amount:32500000,ncas:"202637129"},
+  {id:12,name:"포항문화재단",type:"기초",amount:104000000,ncas:"202637297"},
+  {id:13,name:"전주문화재단",type:"기초",amount:52000000,ncas:"202637560"},
+  {id:14,name:"청주시문화산업진흥재단",type:"기초",amount:65000000,ncas:"202637527"},
+  {id:15,name:"충남문화관광재단",type:"광역",amount:130000000,ncas:"202636597"},
+  {id:16,name:"충북문화재단",type:"광역",amount:130000000,ncas:"202637144"},
+  {id:17,name:"평택시문화재단",type:"기초",amount:130000000,ncas:"202637260"},
+];
+const STEPS=["지원신청","심의·선정","회원가입","결과등록","사업등록","사업등록확정","전용카드발급","교부신청","교부결정·통지","이용환경관리","집행관리","집행취소","집행마감","집행내역검토","정산내역보완","정산완료","정산보고서","정산확정","반납","정보공시"];
+const STEP_SYS=["NCAS","NCAS","e나라","e나라","e나라","e나라","e나라","e나라","e나라","e나라","e나라","e나라","e나라","ARKO","e나라","ARKO","e나라","ARKO","e나라","e나라"];
+const STATUSES=[
+  {k:"대기",cls:"s-wait",dot:"#9aa0ad"},{k:"사전검토중",cls:"s-review",dot:"#8a5c0a"},
+  {k:"사업등록중",cls:"s-reg",dot:"#1a4f8a"},{k:"교부신청중",cls:"s-apply",dot:"#5b3fa0"},
+  {k:"교부결정",cls:"s-decided",dot:"#2d7a4f"},{k:"집행중",cls:"s-exec",dot:"#0f6e56"},
+  {k:"정산중",cls:"s-settle",dot:"#993c1d"},{k:"완료",cls:"s-done",dot:"#1a2d4d"},
+];
+const STAGES=["대기","사전검토중","사업등록중","교부신청중","교부결정","집행중","정산중","완료"];
+const ST_STEP={대기:0,사전검토중:2,사업등록중:5,교부신청중:8,교부결정:9,집행중:11,정산중:17,완료:20};
+const CL_SECS=[
+  {id:"A",label:"A. 교부신청 공통 서류",cls:"ta",items:[
+    {t:"교부신청서 재단구분 정확히 기재 (광역·선도 / 일반 기초 / 인구감소)",w:true},
+    {t:"지원신청서 vs 교부신청서 총사업비 일치 여부",n:"불일치 시 사전검토 반려"},
+    {t:"성희롱·성폭력 예방교육 이수확인서 제출",n:"2026.1.1. 이후 이수분만 인정"},
+    {t:"잔액처리 — 추가공모 선택 금지, ARKO 협의 후 반납으로 선택",w:true},
+    {t:"e나라도움 회원가입 및 소속기관·부서 등록 완료"},
+    {t:"e나라도움 사업기간 설정 (실 사업기간, 12.31. 임의 설정 금지)"},
+    {t:"보조금 전용카드(e나라도움카드) 발급 신청 완료"},
+    {t:"예치형: 이체인증서·OTP 등록 및 펌뱅킹 신청 동의"},
+    {t:"회계검증 일정 협의 완료 (한미회계법인 고대성 차장 02-3453-3971)"},
+    {t:"집행증빙 개인정보 마스킹 처리 안내 전달"},
+  ]},
+  {id:"B",label:"B. 자체재원(지방비) 증빙",cls:"tb",items:[
+    {t:"지방비 확보 증빙 — 시·도 예산서 또는 재단 이사회 의결서 구비",n:"매칭 비율 산정 기준 재원"},
+    {t:"지방비 전용계좌 개설 — 문예기금 계좌와 분리 운용",w:true},
+    {t:"지방비 배분 계획 확인 — 지원 단체 전체에 비례 지원"},
+    {t:"ARKO 모니터링 시 지방비 집행자료 제출 가능 여부 확인"},
+    {t:"지방비 잔액 처리 방법 사전 확인"},
+  ]},
+  {id:"C",label:"C. 기업 후원금(기부금) 증빙",cls:"tc",items:[
+    {t:"후원 협약서만으로는 정산 증빙 불인정 — 기부금 영수증+이체확인증 필수",w:true},
+    {t:"[방식①] 단체 직접 발급: 기부금 영수증 + 기업→단체 이체확인증",n:"단체가 지정기부금단체인 경우"},
+    {t:"[방식②] 재단 대행: 재단 영수증 + 기업→재단 + 재단→단체 이체확인증 (3단계)",w:true},
+    {t:"[방식③] ARKO 발급: ARKO 기부금 영수증 + 조건부 기부 교부확인서",n:"1천만원 이상 권장"},
+    {t:"기업 후원금 전용계좌 개설 및 분리 관리",w:true},
+    {t:"기업→단체 이체 사실 확인 — 사업기간 내 이체분만 인정"},
+    {t:"기업 후원금 총액 ≥ 재단 확보 지방비 (매칭 기준 충족)"},
+  ]},
+  {id:"D",label:"D. 문예기금 집행·정산 준비",cls:"td",items:[
+    {t:"문예기금 전용계좌 개설 (잔고 0원 시작)"},
+    {t:"전자(세금)계산서 발행 가능 업체와만 거래 — 간이영수증 불인정",w:true},
+    {t:"현금 집행 금지 — 전용카드 또는 계좌이체만 가능",w:true},
+    {t:"사례비: 계약서+이체확인증+원천세납부영수증+원천징수이행상황신고서"},
+    {t:"문화예술용역 표준계약서 사용 및 예술인 고용보험료 납부 확인"},
+    {t:"300만원 이상 지출 시 비교견적서(2개 이상) 구비"},
+    {t:"e나라도움 집행내역 즉시 등록 — 사후 소급 등록 금지",w:true},
+    {t:"회계검증수수료 예산 편성 확인 (필수 편성 항목)"},
+    {t:"실적보고서 기한 — 사업 종료 후 2개월 이내 (→ 2027.2월)"},
+    {t:"정보공시 대상 여부 확인 (총액 1천만원 이상 → 2027.4월까지)"},
+    {t:"증빙서류 5년 보관 의무 (보조금관리법 제35조의2)"},
+  ]},
+];
+const CL_TOTAL=CL_SECS.reduce((a,s)=>a+s.items.length,0);
+
+/* ══════════════════════════════════════
+   상태 변수
+══════════════════════════════════════ */
+let ROLE='found', cFilter='', qFilter='', aText='', aStage='';
+let expanded={}, editingStId=null;
+let FSTATUS=[], ADMIN=[], NOTICES=[], CASES=[], QAS=[];
+
+/* ══════════════════════════════════════
+   유틸
+══════════════════════════════════════ */
+const today=()=>new Date().toISOString().split('T')[0];
+const fmtD=d=>d?d.substring(2).replace(/-/g,'.'):''
+const fmtAmt=n=>n.toLocaleString('ko-KR')+'원';
+const gid=()=>Date.now().toString(36)+Math.random().toString(36).substr(2,4);
+const stObj=s=>STATUSES.find(x=>x.k===s)||STATUSES[0];
+
+/* ══════════════════════════════════════
+   Firestore CRUD
+══════════════════════════════════════ */
+const fsSet=(col,id,data)=>db.collection(col).doc(String(id)).set(data,{merge:true});
+const fsDel=(col,id)=>db.collection(col).doc(String(id)).delete();
+const fsListen=(col,cb)=>db.collection(col).onSnapshot(snap=>cb(snap.docs.map(d=>({id:d.id,...d.data()}))));
+
+/* ══════════════════════════════════════
+   비밀번호
+══════════════════════════════════════ */
+const PW_KEY='mfp_pw2026';
+const getPw=()=>localStorage.getItem(PW_KEY)||'arko2026';
+const requestAdmin=()=>{
+  document.getElementById('pw-inp').value='';
+  document.getElementById('pw-err').classList.remove('show');
+  document.getElementById('pw-chg-wrap').style.display='none';
+  document.getElementById('pw-overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('pw-inp').focus(),100);
+};
+const closePwModal=()=>document.getElementById('pw-overlay').classList.add('hidden');
+const checkPw=()=>{
+  const v=document.getElementById('pw-inp').value;
+  if(v===getPw()){closePwModal();setRole('arko');}
+  else{
+    const el=document.getElementById('pw-inp');
+    el.classList.add('err');document.getElementById('pw-err').classList.add('show');
+    setTimeout(()=>el.classList.remove('err'),400);el.value='';el.focus();
+  }
+};
+const showPwChange=()=>{
+  document.getElementById('pw-new1').value='';document.getElementById('pw-new2').value='';
+  document.getElementById('pw-chg-err').textContent='';
+  document.getElementById('pw-chg-wrap').style.display='block';
+  document.getElementById('pw-overlay').classList.remove('hidden');
+};
+const changePw=()=>{
+  const n1=document.getElementById('pw-new1').value;
+  const n2=document.getElementById('pw-new2').value;
+  const errEl=document.getElementById('pw-chg-err');
+  errEl.style.display='none';
+  if(!n1||n1.length<4){errEl.textContent='4자 이상 입력해주세요.';errEl.style.display='block';return;}
+  if(n1!==n2){errEl.textContent='비밀번호가 일치하지 않습니다.';errEl.style.display='block';return;}
+  try{
+    localStorage.setItem(PW_KEY,n1);
+    const saved=localStorage.getItem(PW_KEY);
+    if(saved===n1){
+      closePwModal();
+      showToast('✅ 비밀번호가 변경되었습니다.');
+    } else {
+      errEl.textContent='저장에 실패했습니다. 다시 시도해주세요.';errEl.style.display='block';
+    }
+  }catch(e){
+    errEl.textContent='저장 오류: '+e.message;errEl.style.display='block';
+  }
+};
+/* ══════════════════════════════════════
+   토스트 알림
+══════════════════════════════════════ */
+let toastTimer=null;
+function showToast(msg, duration=2500){
+  const el=document.getElementById('toast');
+  if(!el)return;
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'), duration);
+}
+
+/* ══════════════════════════════════════
+   커스텀 확인 모달
+══════════════════════════════════════ */
+let confirmCallback=null;
+function showConfirm(msg, sub, okLabel, cb){
+  document.getElementById('confirm-msg').textContent=msg;
+  document.getElementById('confirm-sub').textContent=sub||'이 작업은 되돌릴 수 없습니다.';
+  const okBtn=document.getElementById('confirm-ok-btn');
+  okBtn.textContent=okLabel||'확인';
+  // 로그아웃은 빨간색 아닌 네이비로
+  okBtn.style.background=okLabel==='로그아웃'?'var(--navy)':okLabel==='삭제'?'var(--red)':'var(--navy)';
+  confirmCallback=cb;
+  document.getElementById('confirm-overlay').classList.remove('hidden');
+}
+function closeConfirm(){
+  document.getElementById('confirm-overlay').classList.add('hidden');
+  confirmCallback=null;
+}
+function doConfirm(){
+  document.getElementById('confirm-overlay').classList.add('hidden');
+  if(typeof confirmCallback==='function') confirmCallback();
+  confirmCallback=null;
+}
+
+const logoutAdmin=()=>setRole('found');
+const confirmLogout=()=>showConfirm('관리자 모드에서 로그아웃 하시겠습니까?','참여 재단 모드로 전환됩니다.','로그아웃',logoutAdmin);
+
+/* ══════════════════════════════════════
+   역할 / 네비
+══════════════════════════════════════ */
+const PUB_TABS=[{id:'home',lbl:'홈'},{id:'status',lbl:'📋 재단 현황표'},{id:'notice',lbl:'📢 공지사항'},{id:'cases',lbl:'💡 사례 공유'},{id:'qa',lbl:'💬 Q&A'}];
+const ADM_TABS=[{id:'admin',lbl:'⚙ 행정관리'},{id:'process',lbl:'🔄 e나라도움 단계'},{id:'issues',lbl:'⚠ 이슈 모니터'}];
+
+function setRole(r){
+  ROLE=r;
+  const isArko=r==='arko';
+  document.getElementById('arko-btn').classList.toggle('active',isArko);
+  document.getElementById('found-btn').classList.toggle('active',!isArko);
+  document.getElementById('arko-btn').textContent=isArko?'🔐 관리자 모드':'🔐 관리자 로그인';
+  document.getElementById('found-btn').textContent=isArko?'🏛 재단 전환':'🏛 참여 재단';
+  document.getElementById('role-hint').textContent=isArko?'ARKO 관리자로 접속 중':'참여 재단으로 접속 중';
+  document.getElementById('role-hint').style.color=isArko?'var(--gold)':'rgba(255,255,255,.4)';
+  document.getElementById('admin-bar').classList.toggle('show',isArko);
+  buildNav();
+  const cur=document.querySelector('.page.active')?.id?.replace('page-','')||'home';
+  if(!isArko&&!PUB_TABS.find(t=>t.id===cur)) showPage('home');
+  else renderPage(cur);
+}
+
+function buildNav(){
+  const tabs=[...PUB_TABS,...(ROLE==='arko'?[{id:'__sep'},]:[]),...(ROLE==='arko'?ADM_TABS:[])];
+  document.getElementById('nav-bar').innerHTML=tabs.map(t=>{
+    if(t.id==='__sep') return '<div class="nav-sep"></div>';
+    const cur=document.querySelector('.page.active')?.id?.replace('page-','')||'home';
+    return `<button class="nav-btn${t.id===cur?' active':''}" onclick="showPage('${t.id}')">${t.lbl}</button>`;
+  }).join('');
+}
+
+function showPage(name){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(name!=='admin') currentAdminDetailId=null;
+  buildNav();
+  renderPage(name);
+}
+function renderPage(name){
+  if(name==='home')renderHome();
+  if(name==='status')renderStatus();
+  if(name==='notice'){renderNoticeWrite();renderNotices();}
+  if(name==='cases'){renderCaseWrite();renderCases();}
+  if(name==='qa'){renderQAWrite();renderQA();}
+  if(name==='admin'){
+    if(currentAdminDetailId!==null){
+      document.getElementById('admin-detail-wrap').style.display='block';
+      document.getElementById('admin-list-wrap').style.display='none';
+    } else {
+      document.getElementById('admin-detail-wrap').style.display='none';
+      document.getElementById('admin-list-wrap').style.display='block';
+      renderAdminTable();
+    }
+  }
+  if(name==='process')renderProcSelects();
+  if(name==='issues')renderIssues();
+}
+
+/* ══════════════════════════════════════
+   홈
+══════════════════════════════════════ */
+function renderHome(){
+  const waiting=QAS.filter(q=>q.status==='waiting').length;
+  const adv=FSTATUS.filter(f=>['교부결정','집행중','정산중','완료'].includes(f.status)).length;
+  const issOpen=ADMIN.reduce((a,x)=>a+(x.issues||[]).filter(i=>!i.r).length,0);
+  document.getElementById('home-stats').innerHTML=`
+    <div class="stat"><div class="stat-v">${adv}</div><div class="stat-l">교부결정 이상</div></div>
+    <div class="stat"><div class="stat-v">${FSTATUS.filter(f=>f.status==='집행중').length}</div><div class="stat-l">집행 중</div></div>
+    <div class="stat"><div class="stat-v">${CASES.length}</div><div class="stat-l">공유 사례</div></div>
+    <div class="stat"><div class="stat-v" style="color:var(--amber);">${waiting}</div><div class="stat-l">Q&A 대기</div></div>
+    ${ROLE==='arko'?`<div class="stat"><div class="stat-v" style="color:var(--red);">${issOpen}</div><div class="stat-l">미해결 이슈</div></div>`:''}
+  `;
+  const rN=NOTICES.slice(0,3);
+  document.getElementById('home-notices').innerHTML=rN.length?rN.map(n=>`
+    <div class="list-item" onclick="showPage('notice')">
+      <div class="li-top"><span class="badge ${n.type==='important'?'bi':'bn'}">${n.type==='important'?'필독':'공지'}</span><span class="li-title">${n.title}</span></div>
+      <div class="li-meta">${fmtD(n.date)}</div>
+    </div>`).join(''):'<div class="empty">공지 없음</div>';
+  const rQ=QAS.slice(0,3);
+  document.getElementById('home-qa').innerHTML=rQ.length?rQ.map(q=>`
+    <div class="list-item" onclick="showPage('qa')">
+      <div class="li-top"><span class="badge ${q.status==='answered'?'ba':'bw'}">${q.status==='answered'?'답변완료':'대기'}</span><span class="li-title">${q.question.length>28?q.question.slice(0,28)+'…':q.question}</span></div>
+      <div class="li-meta">${q.foundation} · ${fmtD(q.date)}</div>
+    </div>`).join(''):'<div class="empty">Q&A 없음</div>';
+  const rC=CASES.slice(0,2);
+  document.getElementById('home-cases').innerHTML=rC.length?rC.map(c=>`
+    <div class="list-item" onclick="showPage('cases')">
+      <div class="li-top"><span class="badge bc">${c.type}</span><span class="li-title">${c.title}</span></div>
+      <div class="li-meta">${c.foundation} · ${fmtD(c.date)}</div>
+    </div>`).join(''):'<div class="empty">사례 없음</div>';
+}
+
+/* ══════════════════════════════════════
+   현황표
+══════════════════════════════════════ */
+function payBadge(fs,n){
+  const app=fs['pay'+n+'Applied'],done=fs['pay'+n+'Done'],amt=fs['pay'+n+'Amount']||0;
+  if(!app)return'<span style="font-size:11px;color:var(--text3);">미신청</span>';
+  if(done)return`<span class="badge bc" style="font-size:10px;">완료<br>${fmtAmt(amt)}</span>`;
+  return`<span class="badge bw" style="font-size:10px;">신청중<br>${fmtAmt(amt)}</span>`;
+}
+
+function renderStatus(){
+  document.getElementById('status-date').textContent='기준: '+today().replace(/-/g,'.');
+  document.getElementById('st-act-th').textContent=ROLE==='arko'?'수정':'';
+  const segs=[{e:2,l:'심의'},{e:8,l:'교부'},{e:11,l:'집행'},{e:17,l:'정산'},{e:20,l:'완료'}];
+  document.getElementById('status-tbody').innerHTML=FSTATUS.map(fs=>{
+    const f=FOUNDS.find(x=>x.id===fs.id);if(!f)return'';
+    const st=stObj(fs.status); const cur=fs.eStep||0;
+    const mini=segs.map((seg,i)=>{
+      const prev=i===0?0:segs[i-1].e;
+      const cl=cur>=seg.e?'done':cur>prev?'cur':'';
+      return`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;margin:0 1px;">
+        <span class="mini-dot ${cl}"></span><span style="font-size:9px;color:var(--text3);">${seg.l}</span>
+      </span>${i<segs.length-1?`<span class="mini-line ${cur>=seg.e?'done':''}"></span>`:''}`}).join('');
+    const isEd=editingStId===fs.id;
+    const stOpts=STATUSES.map(s=>`<option value="${s.k}" ${fs.status===s.k?'selected':''}>${s.k}</option>`).join('');
+    const epOpts=STEPS.map((nm,i)=>`<option value="${i+1}" ${(i+1)===cur?'selected':''}>${i+1}. ${nm}</option>`).join('');
+    return`<tr>
+      <td style="color:var(--text3);">${f.id}</td>
+      <td style="font-weight:500;">${f.name}</td>
+      <td style="font-size:11px;color:var(--text2);">${f.type}</td>
+      <td>
+        <span class="spill ${st.cls}"><span class="sdot"></span>${fs.status}</span>
+        ${isEd?`<div class="ie-wrap">
+          <div class="ie-lbl">상태</div><select id="ies-${fs.id}">${stOpts}</select>
+          <div class="ie-lbl">e나라도움 단계</div><select id="iee-${fs.id}">${epOpts}</select>
+          <div class="ie-lbl">집행률(%)</div><input type="number" id="ier-${fs.id}" min="0" max="100" value="${fs.execRate||0}" />
+          <div class="ie-lbl">비고</div><textarea id="iem-${fs.id}">${fs.memo||''}</textarea>
+          <div style="display:flex;gap:6px;"><button class="btn btn-p btn-sm" onclick="saveStEdit(${fs.id})">저장</button><button class="btn btn-sm" onclick="editingStId=null;renderStatus();">취소</button></div>
+        </div>`:''}
+      </td>
+      <td>${payBadge(fs,'1')}</td><td>${payBadge(fs,'2')}</td>
+      <td><div style="display:inline-flex;align-items:flex-end;gap:1px;">${mini}</div><div style="font-size:10px;color:var(--text3);margin-top:2px;">${cur}단계</div></td>
+      <td><div style="font-weight:500;">${fs.execRate||0}%</div><div style="height:4px;border-radius:2px;background:var(--bg3);margin-top:3px;"><div style="height:100%;border-radius:2px;background:var(--navy);width:${fs.execRate||0}%;"></div></div></td>
+      <td style="font-size:11px;color:var(--text2);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${fs.memo||''}">${fs.memo||'—'}</td>
+      ${ROLE==='arko'?`<td><button class="btn btn-sm" onclick="editingStId=${isEd?'null':fs.id};renderStatus();">${isEd?'닫기':'수정'}</button></td>`:'<td></td>'}
+    </tr>`;
+  }).join('');
+}
+
+async function saveStEdit(id){
+  const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;
+  await fsSet('fstatus',id,{...fs,
+    status:document.getElementById(`ies-${id}`)?.value||fs.status,
+    eStep:parseInt(document.getElementById(`iee-${id}`)?.value)||fs.eStep,
+    execRate:Math.min(100,Math.max(0,parseInt(document.getElementById(`ier-${id}`)?.value)||0)),
+    memo:document.getElementById(`iem-${id}`)?.value||'',updatedAt:today(),
+  });
+  editingStId=null;
+}
+
+/* ══════════════════════════════════════
+   공지사항
+══════════════════════════════════════ */
+function renderNoticeWrite(){
+  document.getElementById('notice-write-wrap').innerHTML=ROLE==='arko'?`<div class="card" style="margin-bottom:10px;">
+    <div class="card-hd"><span><span class="admin-tag">관리자</span>공지 등록</span></div>
+    <div class="form-row"><div class="form-lbl">유형</div><select class="fi" id="n-type" style="width:auto;"><option value="notice">일반</option><option value="important">필독</option></select></div>
+    <div class="form-row"><div class="form-lbl">제목</div><input class="fi" id="n-title" placeholder="공지 제목" style="width:100%;" /></div>
+    <div class="form-row"><div class="form-lbl">내용</div><textarea class="fi fta" id="n-body" placeholder="내용..."></textarea></div>
+    <button class="btn btn-p" onclick="submitNotice()">등록</button>
+  </div>`:'';
+}
+function renderNotices(){
+  document.getElementById('n-cnt').textContent=`총 ${NOTICES.length}건`;
+  const readSet=getReadSet();
+  document.getElementById('notice-list').innerHTML=NOTICES.length?NOTICES.map(n=>{
+    const k='n_'+n.id;const exp=expanded[k];
+    const isRead=readSet.has(n.id);
+    return`<div class="list-item">
+      <div class="li-top"><span class="badge ${n.type==='important'?'bi':'bn'}">${n.type==='important'?'필독':'공지'}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${n.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderNotices();">${exp?'▲':'▼'}</button></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px;flex-wrap:wrap;gap:4px;">
+        <div class="li-meta">ARKO · ${fmtD(n.date)}</div>
+        <button class="read-btn ${isRead?'on':''}" onclick="event.stopPropagation();toggleRead('${n.id}');renderNotices();">
+          ${isRead?'✅ 확인완료':'👁 확인하기'} <span class="read-cnt">${n.readCount||0}</span>
+        </button>
+      </div>
+      ${exp?`<div class="li-body">${n.body}</div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openEdit('notices','${n.id}')">✏ 수정</button>
+        <button class="btn btn-sm btn-d" onclick="event.stopPropagation();showConfirm('이 공지를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('notices','${n.id}'))">삭제</button>
+      </div>`:''}
+    </div>`;}).join(''):'<div class="empty">공지 없음</div>';
+}
+async function submitNotice(){
+  const t=document.getElementById('n-title')?.value.trim();
+  const b=document.getElementById('n-body')?.value.trim();
+  if(!t||!b){showToast('⚠ 제목과 내용을 입력해주세요.');return;}
+  const id=gid();
+  await fsSet('notices',id,{id,type:document.getElementById('n-type').value,title:t,date:today(),body:b});
+  document.getElementById('n-title').value='';document.getElementById('n-body').value='';
+}
+
+/* ══════════════════════════════════════
+   사례 공유
+══════════════════════════════════════ */
+function renderCaseWrite(){
+  const fo=FOUNDS.map(f=>`<option value="${f.name}">${f.name}</option>`).join('');
+  document.getElementById('case-write-wrap').innerHTML=`<div class="card" style="margin-bottom:10px;">
+    <div class="card-hd"><span>사례 공유하기</span></div>
+    ${ROLE==='found'?`<div class="form-row"><div class="form-lbl">우리 재단</div><select class="fi" id="c-found" style="width:100%;"><option value="">선택...</option>${fo}</select></div>`:''}
+    <div class="form-row"><div class="form-lbl">유형</div><select class="fi" id="c-type" style="width:auto;"><option value="기업유치">기업 유치</option><option value="공모운영">공모 운영</option><option value="정산관리">정산·회계</option><option value="예술단체">예술단체 지원</option><option value="기타">기타</option></select></div>
+    <div class="form-row"><div class="form-lbl">제목</div><input class="fi" id="c-title" placeholder="사례 제목" style="width:100%;" /></div>
+    <div class="form-row"><div class="form-lbl">내용</div><textarea class="fi fta" id="c-body" placeholder="운영 방식, 성과 등..."></textarea></div>
+    <div class="form-row"><div class="form-lbl">태그 (쉼표 구분)</div><input class="fi" id="c-tags" placeholder="예: 기업유치, 설명회" style="width:100%;" /></div>
+    <button class="btn btn-p" onclick="submitCase()">공유</button>
+  </div>`;
+}
+function renderCases(){
+  const list=cFilter?CASES.filter(c=>c.type===cFilter):CASES;
+  document.getElementById('case-list').innerHTML=list.length?list.map(c=>{
+    const k='c_'+c.id;const exp=expanded[k];
+    return`<div class="list-item">
+      <div class="li-top"><span class="badge bc">${c.type}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${c.title}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderCases();">${exp?'▲':'▼'}</button></div>
+      <div class="li-meta"><span class="badge bf" style="font-size:10px;">${c.foundation}</span> · ${fmtD(c.date)}</div>
+      ${exp?`<div class="li-body">${c.body}</div><div class="case-tags">${(c.tags||[]).map(t=>`<span class="case-tag">#${t}</span>`).join('')}</div>`:''}
+      ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;">
+        <button class="btn btn-sm" onclick="event.stopPropagation();openEdit('cases','${c.id}')">✏ 수정</button>
+        <button class="btn btn-sm btn-d" onclick="event.stopPropagation();showConfirm('이 사례를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('cases','${c.id}'))">삭제</button>
+      </div>`:''}
+    </div>`;}).join(''):'<div class="empty">공유된 사례가 없습니다.</div>';
+}
+async function submitCase(){
+  const t=document.getElementById('c-title')?.value.trim();
+  const b=document.getElementById('c-body')?.value.trim();
+  const f=ROLE==='found'?document.getElementById('c-found')?.value:'ARKO';
+  if(!t||!b||(ROLE==='found'&&!f)){showToast('⚠ 필수 항목을 입력해주세요.');return;}
+  const tags=(document.getElementById('c-tags')?.value||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const newId=gid();
+  await fsSet('cases',newId,{id:newId,type:document.getElementById('c-type').value,title:t,foundation:f,date:today(),body:b,tags});
+  document.getElementById('c-title').value='';document.getElementById('c-body').value='';
+  if(document.getElementById('c-tags'))document.getElementById('c-tags').value='';
+}
+
+/* ══════════════════════════════════════
+   Q&A
+══════════════════════════════════════ */
+function renderQAWrite(){
+  const fo=FOUNDS.map(f=>`<option value="${f.name}">${f.name}</option>`).join('');
+  document.getElementById('qa-write-wrap').innerHTML=ROLE==='found'?`<div class="card" style="margin-bottom:10px;">
+    <div class="card-hd"><span>질문 등록</span></div>
+    <div class="form-row"><div class="form-lbl">우리 재단</div><select class="fi" id="q-found" style="width:100%;"><option value="">선택...</option>${fo}</select></div>
+    <div class="form-row"><div class="form-lbl">질문 내용</div><textarea class="fi fta" id="q-body" placeholder="궁금한 점을 질문해주세요. 답변 후 모든 재단이 열람합니다."></textarea></div>
+    <button class="btn btn-p" onclick="submitQA()">질문 등록</button>
+  </div>`:'';
+}
+function renderQA(){
+  const list=qFilter?QAS.filter(q=>q.status===qFilter):QAS;
+  document.getElementById('qa-list').innerHTML=list.length?list.map(q=>{
+    const k='q_'+q.id;const exp=expanded[k];
+    return`<div style="padding:9px 0;border-bottom:1px solid var(--border);">
+      <div class="li-top"><span class="badge ${q.status==='answered'?'ba':'bw'}">${q.status==='answered'?'답변완료':'대기'}</span><span class="li-title" onclick="expanded['${k}']=!expanded['${k}'];renderQA();">${q.question}</span><button class="exp-btn" onclick="expanded['${k}']=!expanded['${k}'];renderQA();">${exp?'▲':'▼'}</button></div>
+      <div class="li-meta"><span class="badge bf" style="font-size:10px;">${q.foundation}</span> · ${fmtD(q.date)}</div>
+      ${exp?`<div style="margin-top:8px;">
+        ${q.answer?`<div class="ans-box"><div class="ans-lbl">ARKO 답변 · ${fmtD(q.answeredDate)}</div><div class="ans-txt">${q.answer}</div></div>`:'<div style="font-size:12px;color:var(--text2);padding:6px 0;">ARKO 검토 중입니다.</div>'}
+        ${ROLE==='arko'&&q.status==='waiting'?`<div class="ans-form"><div style="font-size:11.5px;font-weight:500;color:var(--navy);margin-bottom:7px;"><span class="admin-tag">관리자</span>답변 등록</div><textarea class="fi fta" id="ans-${q.id}" style="min-height:55px;" placeholder="답변..."></textarea><div style="margin-top:6px;"><button class="btn btn-p btn-sm" onclick="submitAns('${q.id}')">등록</button></div></div>`:''}
+        ${ROLE==='arko'?`<div style="margin-top:6px;display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="event.stopPropagation();openEdit('qa','${q.id}')">✏ 수정</button>
+          <button class="btn btn-sm btn-d" onclick="showConfirm('이 Q&A를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',()=>fsDel('qa','${q.id}'))">🗑 삭제</button>
+        </div>`:''}
+      </div>`:''}
+    </div>`;}).join(''):'<div class="empty">Q&A가 없습니다.</div>';
+}
+async function submitQA(){
+  const f=document.getElementById('q-found')?.value;
+  const b=document.getElementById('q-body')?.value.trim();
+  if(!f||!b){showToast('⚠ 재단과 질문 내용을 입력해주세요.');return;}
+  const newId=gid();
+  await fsSet('qa',newId,{id:newId,foundation:f,date:today(),question:b,answer:null,answeredBy:null,answeredDate:null,status:'waiting'});
+  document.getElementById('q-body').value='';
+}
+/* ══════════════════════════════════════
+   수정 모달
+══════════════════════════════════════ */
+let _editCol=null,_editId=null,_editData=null;
+
+function openEdit(col,id){
+  _editCol=col;_editId=id;
+  if(col==='notices'){
+    const n=NOTICES.find(x=>x.id===id);if(!n)return;
+    _editData={...n};
+    document.getElementById('edit-modal-title').textContent='공지 수정';
+    document.getElementById('edit-fields').innerHTML=`
+      <div class="form-row"><div class="form-lbl">유형</div>
+        <select class="fi" id="ef-type" style="width:auto;">
+          <option value="notice" ${n.type==='notice'?'selected':''}>일반</option>
+          <option value="important" ${n.type==='important'?'selected':''}>필독</option>
+        </select>
+      </div>
+      <div class="form-row"><div class="form-lbl">제목</div><input class="fi" id="ef-1" style="width:100%;" value="${n.title.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}"/></div>
+      <div class="form-row"><div class="form-lbl">내용</div><textarea class="fi fta" id="ef-2" style="min-height:120px;">${n.body}</textarea></div>`;
+  } else if(col==='cases'){
+    const c=CASES.find(x=>x.id===id);if(!c)return;
+    _editData={...c};
+    document.getElementById('edit-modal-title').textContent='사례 수정';
+    document.getElementById('edit-fields').innerHTML=`
+      <div class="form-row"><div class="form-lbl">유형</div>
+        <select class="fi" id="ef-type" style="width:auto;">
+          <option value="기업유치" ${c.type==='기업유치'?'selected':''}>기업 유치</option>
+          <option value="공모운영" ${c.type==='공모운영'?'selected':''}>공모 운영</option>
+          <option value="정산관리" ${c.type==='정산관리'?'selected':''}>정산·회계</option>
+          <option value="예술단체" ${c.type==='예술단체'?'selected':''}>예술단체 지원</option>
+          <option value="기타" ${c.type==='기타'?'selected':''}>기타</option>
+        </select>
+      </div>
+      <div class="form-row"><div class="form-lbl">제목</div><input class="fi" id="ef-1" style="width:100%;" value="${c.title.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}"/></div>
+      <div class="form-row"><div class="form-lbl">내용</div><textarea class="fi fta" id="ef-2" style="min-height:120px;">${c.body}</textarea></div>
+      <div class="form-row"><div class="form-lbl">태그 (쉼표 구분)</div><input class="fi" id="ef-3" style="width:100%;" value="${(c.tags||[]).join(', ')}"/></div>`;
+  } else if(col==='qa'){
+    const q=QAS.find(x=>x.id===id);if(!q)return;
+    _editData={...q};
+    document.getElementById('edit-modal-title').textContent='Q&A 수정';
+    document.getElementById('edit-fields').innerHTML=`
+      <div class="form-row"><div class="form-lbl">질문 내용</div><textarea class="fi fta" id="ef-1" style="min-height:80px;">${q.question}</textarea></div>
+      ${q.answer!==null&&q.answer!==undefined?`<div class="form-row"><div class="form-lbl">답변 내용</div><textarea class="fi fta" id="ef-2" style="min-height:80px;">${q.answer||''}</textarea></div>`:''}`;
+  }
+  document.getElementById('edit-overlay').classList.remove('hidden');
+}
+
+function closeEdit(){
+  document.getElementById('edit-overlay').classList.add('hidden');
+  _editCol=null;_editId=null;_editData=null;
+}
+
+async function saveEdit(){
+  if(!_editCol||!_editId||!_editData){closeEdit();return;}
+  let updated={..._editData};
+  if(_editCol==='notices'){
+    updated.type=document.getElementById('ef-type')?.value||updated.type;
+    updated.title=document.getElementById('ef-1')?.value.trim()||updated.title;
+    updated.body=document.getElementById('ef-2')?.value.trim()||updated.body;
+  } else if(_editCol==='cases'){
+    updated.type=document.getElementById('ef-type')?.value||updated.type;
+    updated.title=document.getElementById('ef-1')?.value.trim()||updated.title;
+    updated.body=document.getElementById('ef-2')?.value.trim()||updated.body;
+    updated.tags=(document.getElementById('ef-3')?.value||'').split(',').map(t=>t.trim()).filter(Boolean);
+  } else if(_editCol==='qa'){
+    updated.question=document.getElementById('ef-1')?.value.trim()||updated.question;
+    const ansEl=document.getElementById('ef-2');
+    if(ansEl) updated.answer=ansEl.value.trim();
+  }
+  await fsSet(_editCol,_editId,updated);
+  closeEdit();
+  showToast('✅ 수정되었습니다.');
+}
+
+/* ══════════════════════════════════════
+   공지 확인(읽음) 기능
+══════════════════════════════════════ */
+const READ_KEY='mfp_read_2026';
+function getReadSet(){try{return new Set(JSON.parse(localStorage.getItem(READ_KEY)||'[]'));}catch(e){return new Set();}}
+async function toggleRead(nid){
+  const s=getReadSet();
+  const n=NOTICES.find(x=>x.id===nid);if(!n)return;
+  if(s.has(nid)){
+    s.delete(nid);
+    localStorage.setItem(READ_KEY,JSON.stringify([...s]));
+    await fsSet('notices',nid,{...n,readCount:Math.max(0,(n.readCount||1)-1)});
+    showToast('확인을 취소했습니다.');
+  } else {
+    s.add(nid);
+    localStorage.setItem(READ_KEY,JSON.stringify([...s]));
+    await fsSet('notices',nid,{...n,readCount:(n.readCount||0)+1});
+    showToast('✅ 확인했습니다!');
+  }
+}
+
+async function submitAns(qid){
+  const ans=document.getElementById('ans-'+qid)?.value.trim();
+  if(!ans){showToast('⚠ 답변 내용을 입력해주세요.');return;}
+  const q=QAS.find(x=>x.id===qid);if(!q)return;
+  await fsSet('qa',qid,{...q,answer:ans,answeredBy:'ARKO',answeredDate:today(),status:'answered'});
+}
+
+/* ══════════════════════════════════════
+   관리자 — 행정관리 목록
+══════════════════════════════════════ */
+const countChecks=id=>{const a=ADMIN.find(x=>x.id===id);if(!a)return 0;return(a.checks||[]).reduce((s,sec)=>s+(sec||[]).filter(Boolean).length,0);};
+
+function renderAdminTable(){
+  const rows=FOUNDS.filter(f=>{
+    if(aText&&!f.name.includes(aText))return false;
+    const fs=FSTATUS.find(x=>x.id===f.id);
+    if(aStage&&fs?.status!==aStage)return false;
+    return true;
+  });
+  document.getElementById('admin-tbody').innerHTML=rows.map(f=>{
+    const fs=FSTATUS.find(x=>x.id===f.id)||{};
+    const a=ADMIN.find(x=>x.id===f.id)||{};
+    const st=stObj(fs.status);
+    const clDone=countChecks(f.id);
+    const issOpen=(a.issues||[]).filter(i=>!i.r).length;
+    return`<tr onclick="showAdminDetail(${f.id})" style="cursor:pointer;">
+      <td style="color:var(--text3);">${f.id}</td>
+      <td style="font-weight:500;">${f.name}</td>
+      <td style="font-size:11px;color:var(--text2);">${f.type}</td>
+      <td>${fmtAmt(f.amount)}</td>
+      <td><span class="spill ${st.cls}"><span class="sdot"></span>${fs.status||'대기'}</span></td>
+      <td>${payBadge(fs,'1')}</td>
+      <td>${payBadge(fs,'2')}</td>
+      <td>${fs.execRate||0}%</td>
+      <td>${clDone}/${CL_TOTAL}</td>
+      <td>${issOpen?`<span class="badge bi">${issOpen}건</span>`:'<span style="color:var(--text3);">없음</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════
+   관리자 — 행정관리 상세
+══════════════════════════════════════ */
+function showAdminDetail(id){
+  currentAdminDetailId=id;
+  document.getElementById('admin-list-wrap').style.display='none';
+  document.getElementById('admin-detail-wrap').style.display='block';
+  renderAdminDetail(id);
+}
+function backAdminList(){
+  currentAdminDetailId=null;
+  document.getElementById('admin-detail-wrap').style.display='none';
+  document.getElementById('admin-list-wrap').style.display='block';
+  renderAdminTable();
+}
+
+function renderAdminDetail(id){
+  const f=FOUNDS.find(x=>x.id===id);
+  const fs=FSTATUS.find(x=>x.id===id)||{};
+  const a=ADMIN.find(x=>x.id===id)||{checks:CL_SECS.map(s=>s.items.map(()=>false)),issues:[],memo:''};
+  if(!Array.isArray((a.checks||[])[0])) a.checks=CL_SECS.map(s=>s.items.map(()=>false));
+  const cur=fs.eStep||0;
+  const track=STEPS.map((nm,i)=>{const n=i+1;const cl=n<cur?'done':n===cur?'cur':'';return`<div class="step-box ${cl}"><div class="snum">${n}</div><div class="sname">${nm}</div></div>`;}).join('');
+  const stOpts=STAGES.map(sg=>`<option value="${sg}" ${fs.status===sg?'selected':''}>${sg}</option>`).join('');
+  const epOpts=STEPS.map((nm,i)=>`<option value="${i+1}" ${(i+1)===cur?'selected':''}>${i+1}. ${nm}</option>`).join('');
+  const clDone=countChecks(id);
+  const clHtml=CL_SECS.map((sec,si)=>{
+    const secDone=(a.checks[si]||[]).filter(Boolean).length;
+    return`<div class="cl-sec"><div class="cl-sec-title ${sec.cls}">${sec.label}<span class="cl-cnt">${secDone}/${sec.items.length}</span></div>
+      <ul class="cl-list">${sec.items.map((item,ii)=>{
+        const checked=(a.checks[si]||[])[ii]||false;
+        return`<li class="cl-item"><div class="chk${checked?' on':''}" onclick="toggleCheck(${id},${si},${ii})">${checked?'✓':''}</div>
+          <div style="flex:1;"><div class="cl-txt${checked?' done':''}">${item.t}</div>
+          ${item.w&&!checked?`<div class="cl-warn">⚠ 주요 오류 주의</div>`:''}
+          ${item.n?`<div class="cl-note">${item.n}</div>`:''}</div></li>`;}).join('')}
+      </ul></div>`;}).join('');
+  const issHtml=(a.issues||[]).length?(a.issues).map((iss,i)=>`
+    <div class="iss-item ${iss.r?'iss-ok':'iss-err'}"><span style="flex:1;">${iss.r?'[해결] ':''}${iss.t}</span>
+      <button class="btn btn-sm" onclick="toggleIss(${id},${i})">${iss.r?'재개':'해결'}</button>
+      <button class="btn btn-sm btn-d" onclick="delIss(${id},${i})">삭제</button>
+    </div>`).join(''):`<div style="font-size:12px;color:var(--text3);padding:4px 0;">이슈 없음</div>`;
+  const p1=fs.pay1Amount||0;const p2=fs.pay2Amount||0;const total=f.amount;const remain=total-p1-p2;
+  const pct1=total?Math.round(p1/total*100):0;const pct2=total?Math.round(p2/total*100):0;
+
+  document.getElementById('admin-detail-wrap').innerHTML=`
+    <button class="back-btn" onclick="backAdminList()">← 목록으로</button>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:11px;">
+        <div style="font-size:15px;font-weight:700;color:var(--navy);">${f.name}</div>
+        <select class="stage-sel" onchange="changeAdminStage(${id},this.value)">${stOpts}</select>
+      </div>
+      <div class="info-grid">
+        <div class="info-r"><span class="info-l">NCAS 관리번호</span><span class="info-v">${f.ncas}</span></div>
+        <div class="info-r"><span class="info-l">재단 유형</span><span class="info-v">${f.type}</span></div>
+        <div class="info-r"><span class="info-l">지원결정액</span><span class="info-v">${fmtAmt(f.amount)}</span></div>
+        <div class="info-r"><span class="info-l">집행률</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" class="exec-inp" min="0" max="100" value="${fs.execRate||0}" onchange="changeExec(${id},this.value)" />
+            <span style="color:var(--text2);">%</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);font-weight:500;margin-bottom:5px;">e나라도움 진행 단계</div>
+      <div class="proc-scroll"><div class="proc-track">${track}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+        <span style="font-size:12px;color:var(--text2);">단계 변경:</span>
+        <select class="stage-sel" onchange="changeEStep(${id},this.value)">${epOpts}</select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span><span class="admin-tag">관리자</span>분할 교부금 관리</span><span style="font-size:11px;color:var(--text2);font-weight:400;">지원결정액: <strong>${fmtAmt(total)}</strong></span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="border:1px solid var(--border);border-radius:var(--r);padding:11px;background:var(--bg);">
+          <div style="font-size:11.5px;font-weight:700;color:var(--blue);margin-bottom:9px;">1차 교부금</div>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;"><div class="chk${fs.pay1Applied?' on':''}" onclick="togglePay(${id},'pay1Applied')">${fs.pay1Applied?'✓':''}</div><span style="font-size:12px;">교부신청 완료</span></div>
+          <div class="form-row"><div class="form-lbl">신청일</div><input type="date" class="fi" value="${fs.pay1Date||''}" onchange="savePay(${id},'pay1Date',this.value)" /></div>
+          <div class="form-row"><div class="form-lbl">신청액 (원)</div><input type="number" class="fi" placeholder="0" value="${p1||''}" onchange="savePay(${id},'pay1Amount',parseInt(this.value)||0)" /></div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:7px;">지원결정액 대비 ${pct1}% (규정상 70% 이내)</div>
+          <div style="display:flex;align-items:center;gap:7px;"><div class="chk${fs.pay1Done?' on':''}" onclick="togglePay(${id},'pay1Done')">${fs.pay1Done?'✓':''}</div><span style="font-size:12px;">교부결정·이체 완료</span>${fs.pay1Done?`<span class="badge bc" style="font-size:10px;">완료</span>`:`<span class="badge bw" style="font-size:10px;">${fs.pay1Applied?'진행중':'대기'}</span>`}</div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:var(--r);padding:11px;background:var(--bg);">
+          <div style="font-size:11.5px;font-weight:700;color:var(--purple);margin-bottom:9px;">2차 교부금</div>
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px;"><div class="chk${fs.pay2Applied?' on':''}" onclick="togglePay(${id},'pay2Applied')">${fs.pay2Applied?'✓':''}</div><span style="font-size:12px;">교부신청 완료</span></div>
+          <div class="form-row"><div class="form-lbl">신청일</div><input type="date" class="fi" value="${fs.pay2Date||''}" onchange="savePay(${id},'pay2Date',this.value)" /></div>
+          <div class="form-row"><div class="form-lbl">신청액 (원)</div><input type="number" class="fi" placeholder="0" value="${p2||''}" onchange="savePay(${id},'pay2Amount',parseInt(this.value)||0)" /></div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:7px;">지원결정액 대비 ${pct2}% (잔액 30% 이상)</div>
+          <div style="display:flex;align-items:center;gap:7px;"><div class="chk${fs.pay2Done?' on':''}" onclick="togglePay(${id},'pay2Done')">${fs.pay2Done?'✓':''}</div><span style="font-size:12px;">교부결정·이체 완료</span>${fs.pay2Done?`<span class="badge bc" style="font-size:10px;">완료</span>`:`<span class="badge bw" style="font-size:10px;">${fs.pay2Applied?'진행중':'대기'}</span>`}</div>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--r);padding:10px 13px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center;font-size:12px;margin-bottom:10px;">
+          <div><div style="font-size:10.5px;color:var(--text2);margin-bottom:2px;">지원결정액</div><div style="font-weight:700;color:var(--navy);">${fmtAmt(total)}</div></div>
+          <div><div style="font-size:10.5px;color:var(--blue);margin-bottom:2px;">1차 교부액</div><div style="font-weight:700;color:var(--blue);">${p1?fmtAmt(p1):'—'}</div></div>
+          <div><div style="font-size:10.5px;color:var(--purple);margin-bottom:2px;">2차 교부액</div><div style="font-weight:700;color:var(--purple);">${p2?fmtAmt(p2):'—'}</div></div>
+          <div><div style="font-size:10.5px;color:var(--text2);margin-bottom:2px;">미교부 잔액</div><div style="font-weight:700;color:${remain>0?'var(--amber)':'var(--green)'};">${fmtAmt(remain)}</div></div>
+        </div>
+        <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden;display:flex;">
+          ${p1?`<div style="width:${pct1}%;background:var(--blue);"></div>`:''}
+          ${p2?`<div style="width:${pct2}%;background:var(--purple);"></div>`:''}
+        </div>
+        <div style="display:flex;gap:12px;margin-top:4px;font-size:10.5px;color:var(--text2);">
+          <span style="color:var(--blue);">■ 1차 ${pct1}%</span><span style="color:var(--purple);">■ 2차 ${pct2}%</span><span>잔액 ${100-pct1-pct2}%</span>
+        </div>
+      </div>
+    </div>
+    <div class="card"><div class="card-hd"><span>이슈 현황</span></div>
+      <div>${issHtml}</div>
+      <div class="add-row"><input type="text" class="fi" id="new-iss-${id}" placeholder="새 이슈 내용..." /><button class="btn btn-p" onclick="addIss(${id})">추가</button></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span>행정 체크리스트</span><span style="font-size:11px;color:var(--text2);font-weight:400;">${clDone}/${CL_TOTAL} 완료 (${Math.round(clDone/CL_TOTAL*100)}%)</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;"><div class="prog"><div class="prog-f" style="width:${Math.round(clDone/CL_TOTAL*100)}%;"></div></div></div>
+      ${clHtml}
+    </div>
+    <div class="card"><div class="card-hd"><span>담당자 메모</span></div>
+      <textarea class="memo-a" id="memo-${id}" placeholder="메모...">${a.memo||''}</textarea>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:7px;">
+        <button class="btn btn-p" onclick="saveMemo(${id})">저장</button>
+        <span id="memo-ok-${id}" style="font-size:11px;color:var(--green);"></span>
+      </div>
+    </div>
+  `;
+}
+
+async function changeAdminStage(id,v){const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;await fsSet('fstatus',id,{...fs,status:v,eStep:ST_STEP[v]||fs.eStep,updatedAt:today()});}
+async function changeEStep(id,v){const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;await fsSet('fstatus',id,{...fs,eStep:parseInt(v)});}
+async function changeExec(id,v){const fs=FSTATUS.find(f=>f.id===id);if(!fs)return;await fsSet('fstatus',id,{...fs,execRate:Math.min(100,Math.max(0,parseInt(v)||0))});}
+async function togglePay(id,field){const fs=FSTATUS.find(x=>x.id===id);if(!fs)return;const u={...fs};u[field]=!u[field];await fsSet('fstatus',id,u);renderAdminDetail(id);}
+async function savePay(id,field,val){const fs=FSTATUS.find(x=>x.id===id);if(!fs)return;const u={...fs};u[field]=val;await fsSet('fstatus',id,u);if(field.includes('Amount'))renderAdminDetail(id);}
+async function toggleCheck(id,si,ii){
+  const a=ADMIN.find(x=>x.id===id);if(!a)return;
+  // checks를 평탄화 키로 저장 (Firestore는 2차원 배열 미지원)
+  const key=`c_${si}_${ii}`;
+  const checksFlat=a.checksFlat||{};
+  checksFlat[key]=!checksFlat[key];
+  a.checksFlat=checksFlat;
+  // checks 배열도 동기화
+  if(!a.checks||!Array.isArray(a.checks[0])) a.checks=CL_SECS.map(s=>s.items.map(()=>false));
+  a.checks[si][ii]=checksFlat[key];
+  await fsSet('admin',id,{id:a.id,issues:a.issues||[],memo:a.memo||'',checksFlat});
+  renderAdminDetail(id);
+}
+async function addIss(id){
+  const inp=document.getElementById(`new-iss-${id}`);if(!inp||!inp.value.trim())return;
+  const a=ADMIN.find(x=>x.id===id);if(!a)return;
+  (a.issues=a.issues||[]).push({t:inp.value.trim(),r:false});inp.value='';
+  await fsSet('admin',id,{id:a.id,issues:a.issues,memo:a.memo||'',checksFlat:a.checksFlat||{}});
+  renderAdminDetail(id);
+}
+async function toggleIss(id,i){
+  const a=ADMIN.find(x=>x.id===id);if(!a)return;
+  a.issues[i].r=!a.issues[i].r;
+  await fsSet('admin',id,{id:a.id,issues:a.issues,memo:a.memo||'',checksFlat:a.checksFlat||{}});
+  renderAdminDetail(id);
+}
+async function delIss(id,i){
+  showConfirm('이 이슈를 삭제할까요?','삭제 후 복구할 수 없습니다.','삭제',async()=>{
+    const a=ADMIN.find(x=>x.id===id);if(!a)return;
+    a.issues.splice(i,1);
+    await fsSet('admin',id,{id:a.id,issues:a.issues,memo:a.memo||'',checksFlat:a.checksFlat||{}});
+    renderAdminDetail(id);
+  });
+}
+async function saveMemo(id){
+  const a=ADMIN.find(x=>x.id===id);if(!a)return;
+  a.memo=document.getElementById(`memo-${id}`)?.value||'';
+  await fsSet('admin',id,{id:a.id,issues:a.issues||[],memo:a.memo,checksFlat:a.checksFlat||{}});
+  const el=document.getElementById(`memo-ok-${id}`);
+  if(el){el.textContent='저장됨 ✓';setTimeout(()=>el.textContent='',1500);}
+}
+
+/* ══════════════════════════════════════
+   e나라도움 단계
+══════════════════════════════════════ */
+function renderProcSelects(){
+  const sel=document.getElementById('proc-sel');if(!sel)return;
+  sel.innerHTML='<option value="">재단을 선택하세요...</option>'+FOUNDS.map(f=>`<option value="${f.id}">${f.id}. ${f.name}</option>`).join('');
+}
+function renderProcView(id){
+  const pv=document.getElementById('proc-view');if(!id){pv.innerHTML='';return;}
+  const f=FOUNDS.find(x=>x.id==id);const fs=FSTATUS.find(x=>x.id==id)||{};const cur=fs.eStep||0;
+  const track=STEPS.map((nm,i)=>{const n=i+1;const cl=n<cur?'done':n===cur?'cur':'';return`<div class="step-box ${cl}"><div class="snum">${n}</div><div class="sname">${nm}</div></div>`;}).join('');
+  const cards=STEPS.map((nm,i)=>{const n=i+1;const lbl=n<cur?'완료':n===cur?'진행중':'대기';const bc=n<cur?'var(--green)':n===cur?'var(--amber)':'var(--border)';return`<div style="border:1px solid var(--border);border-left:3px solid ${bc};border-radius:var(--r);padding:8px 10px;"><div style="font-size:12px;font-weight:500;margin-bottom:2px;">${n}. ${nm}</div><div style="font-size:11px;color:var(--text2);">${STEP_SYS[i]} · ${lbl}</div></div>`;}).join('');
+  const epOpts=STEPS.map((nm,i)=>`<option value="${i+1}" ${(i+1)===cur?'selected':''}>${i+1}. ${nm}</option>`).join('');
+  pv.innerHTML=`<div class="card"><div class="card-hd">${f.name} — e나라도움 20단계</div>
+    <div class="proc-scroll"><div class="proc-track">${track}</div></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:9px;"><span style="font-size:12px;color:var(--text2);">단계 변경:</span>
+      <select class="stage-sel" onchange="changeEStepProc(${id},this.value)">${epOpts}</select></div>
+  </div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:7px;">${cards}</div>`;
+}
+async function changeEStepProc(id,v){const fs=FSTATUS.find(x=>x.id==id);if(!fs)return;await fsSet('fstatus',id,{...fs,eStep:parseInt(v)});renderProcView(id);}
+
+/* ══════════════════════════════════════
+   이슈 모니터
+══════════════════════════════════════ */
+function renderIssues(){
+  const iv=document.getElementById('issues-view');
+  const open=FOUNDS.filter(f=>(ADMIN.find(x=>x.id===f.id)?.issues||[]).some(i=>!i.r));
+  const done=FOUNDS.filter(f=>{const a=ADMIN.find(x=>x.id===f.id);return(a?.issues||[]).length&&a.issues.every(i=>i.r);});
+  let html='';
+  if(open.length){
+    const tot=open.reduce((a,f)=>a+(ADMIN.find(x=>x.id===f.id)?.issues||[]).filter(i=>!i.r).length,0);
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--red);margin-bottom:9px;">미해결 이슈 (${tot}건)</div>`;
+    html+=open.map(f=>{
+      const a=ADMIN.find(x=>x.id===f.id);
+      return`<div class="card" style="margin-bottom:8px;"><div class="card-hd" style="cursor:pointer;" onclick="showAdminDetail(${f.id});showPage('admin');">${f.id}. ${f.name} →</div>
+        ${(a.issues||[]).map((iss,i)=>iss.r?'':`<div class="iss-item iss-err"><span style="flex:1;">${iss.t}</span><button class="btn btn-sm" onclick="resolveIssFromMonitor(${f.id},${i})">해결</button></div>`).join('')}
+      </div>`;}).join('');
+  }
+  if(done.length){
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--green);margin-top:16px;margin-bottom:9px;">해결 완료</div>`;
+    html+=done.map(f=>{const a=ADMIN.find(x=>x.id===f.id);return`<div class="card" style="margin-bottom:8px;"><div class="card-hd">${f.id}. ${f.name}</div>${(a.issues||[]).map(iss=>`<div class="iss-item iss-ok">${iss.t}</div>`).join('')}</div>`;}).join('');
+  }
+  if(!open.length&&!done.length)html='<div class="card"><div class="empty">등록된 이슈가 없습니다.</div></div>';
+  iv.innerHTML=html;
+}
+async function resolveIssFromMonitor(fid,i){
+  const a=ADMIN.find(x=>x.id===fid);if(!a)return;
+  a.issues[i].r=true;
+  await fsSet('admin',fid,{id:a.id,issues:a.issues,memo:a.memo||'',checksFlat:a.checksFlat||{}});
+}
+
+/* ══════════════════════════════════════
+   Firebase 실시간 리스너 시작
+══════════════════════════════════════ */
+async function initFirebase(){
+  // FSTATUS 초기화
+  const fsSnap=await db.collection('fstatus').get();
+  const existFsIds=fsSnap.docs.map(d=>parseInt(d.id));
+  for(const f of FOUNDS){
+    if(!existFsIds.includes(f.id)){
+      await fsSet('fstatus',f.id,{
+        id:f.id,status:f.id<=13?"사전검토중":f.id===14?"사업등록중":"대기",
+        eStep:f.id<=13?2:f.id===14?5:0,execRate:0,memo:'',updatedAt:today(),
+        pay1Applied:false,pay1Date:'',pay1Amount:0,pay1Done:false,
+        pay2Applied:false,pay2Date:'',pay2Amount:0,pay2Done:false,
+      });
+    }
+  }
+  // ADMIN 초기화
+  const adSnap=await db.collection('admin').get();
+  const existAdIds=adSnap.docs.map(d=>parseInt(d.id));
+  const defIss={2:["교부신청서 재단구분 오기"],5:["성희롱·성폭력 예방교육 이수확인서 미제출"],9:["잔액처리 오기 (추가공모 선택)"],13:["지원신청서 vs 교부신청서 예산 금액 불일치"]};
+  for(const f of FOUNDS){
+    if(!existAdIds.includes(f.id)){
+      await fsSet('admin',f.id,{
+        id:f.id,
+        checksFlat:{},
+        issues:(defIss[f.id]||[]).map(t=>({t,r:false})),
+        memo:'',
+      });
+    }
+  }
+  // 씨드 데이터 — 최초 1회만 생성 (삭제 후 재생성 방지)
+  const seedFlagSnap = await db.collection('_meta').doc('initialized').get();
+  if(!seedFlagSnap.exists){
+    const [nSnap,cSnap,qSnap]=await Promise.all([db.collection('notices').get(),db.collection('cases').get(),db.collection('qa').get()]);
+    if(nSnap.empty){
+      const seeds=[
+        {id:'n1',type:'important',title:'[필독] 교부신청 일정 및 제출서류 안내',date:'2026-05-20',body:'■ 교부신청 기간: 2026.6.1.(월) ~ 6.15.(금)\n■ 제출방법: e나라도움 내 교부신청서 제출\n■ 필수서류: 교부신청서, 성희롱예방교육 이수확인서, 자체재원 확보 증빙, 실행계획서\n\n문의: 채희진 02-760-4781'},
+        {id:'n2',type:'notice',title:'기부금 증빙 방식 3가지 — 반드시 확인하세요',date:'2026-05-15',body:'후원 협약서만으로는 정산 증빙 불인정.\n반드시 기부금 영수증 + 이체확인증을 함께 확보하셔야 합니다.'},
+      ];
+      for(const n of seeds) await fsSet('notices',n.id,n);
+    }
+    if(cSnap.empty){
+      const seeds=[
+        {id:'c1',type:'기업유치',title:'지역 중소기업 발굴 — 상공회의소 협력 사례',foundation:'충북문화재단',date:'2026-05-18',body:'청주상공회의소 MOU 체결 후 회원사 대상 설명회 진행. 40개 기업 참석 → 8개 기업 결연 성사.',tags:['기업유치','상공회의소']},
+        {id:'c2',type:'정산관리',title:'e나라도움 주 1회 정기 등록 루틴',foundation:'전주문화재단',date:'2026-05-12',body:'매주 금요일 "e나라도움 등록의 날" 지정. 집행내역 취합 후 일괄 등록.',tags:['e나라도움','집행관리']},
+      ];
+      for(const c of seeds) await fsSet('cases',c.id,c);
+    }
+    if(qSnap.empty){
+      const seeds=[
+        {id:'q1',foundation:'노원문화재단',date:'2026-05-19',question:'기업이 예술단체에 직접 후원금을 이체한 경우, 재단은 어떤 서류를 받아야 하나요?',answer:'방식① 해당:\n① 단체 발행 기부금 영수증\n② 기업→단체 이체확인증\n두 가지 모두 재단이 확보·보관하셔야 합니다.',answeredBy:'ARKO',answeredDate:'2026-05-20',status:'answered'},
+        {id:'q2',foundation:'부안군문화재단',date:'2026-05-21',question:'지방비가 부족한 경우 어떻게 해야 하나요?',answer:null,answeredBy:null,answeredDate:null,status:'waiting'},
+      ];
+      for(const q of seeds) await fsSet('qa',q.id,q);
+    }
+    // 초기화 완료 플래그 저장 — 이후 재방문 시 씨드 재생성 방지
+    await db.collection('_meta').doc('initialized').set({done:true, at:today()});
+  }
+
+  // 실시간 리스너 등록
+  db.collection('fstatus').onSnapshot(snap=>{
+    FSTATUS=FOUNDS.map(f=>{
+      const d=snap.docs.find(x=>parseInt(x.id)===f.id);
+      return d?{id:f.id,...d.data()}:{id:f.id,status:'대기',eStep:0,execRate:0,memo:'',updatedAt:today(),pay1Applied:false,pay1Date:'',pay1Amount:0,pay1Done:false,pay2Applied:false,pay2Date:'',pay2Amount:0,pay2Done:false};
+    });
+    refreshCurrent();
+  });
+  db.collection('admin').onSnapshot(snap=>{
+    ADMIN=FOUNDS.map(f=>{
+      const d=snap.docs.find(x=>parseInt(x.id)===f.id);
+      if(!d)return{id:f.id,checks:CL_SECS.map(s=>s.items.map(()=>false)),checksFlat:{},issues:[],memo:''};
+      const a={id:f.id,...d.data()};
+      // checksFlat → checks 2차원 배열로 복원
+      const flat=a.checksFlat||{};
+      a.checks=CL_SECS.map((sec,si)=>sec.items.map((_,ii)=>!!flat[`c_${si}_${ii}`]));
+      return a;
+    });
+    refreshCurrent();
+  });
+  db.collection('notices').onSnapshot(snap=>{
+    NOTICES=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.date.localeCompare(a.date));
+    refreshCurrent();
+  });
+  db.collection('cases').onSnapshot(snap=>{
+    CASES=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.date.localeCompare(a.date));
+    refreshCurrent();
+  });
+  db.collection('qa').onSnapshot(snap=>{
+    QAS=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.date.localeCompare(a.date));
+    refreshCurrent();
+  });
+}
+
+let currentAdminDetailId=null;
+
+function refreshCurrent(){
+  const cur=document.querySelector('.page.active')?.id?.replace('page-','')||'home';
+  if(cur==='admin'&&currentAdminDetailId!==null){
+    renderAdminDetail(currentAdminDetailId);
+    return;
+  }
+  // 모든 페이지 최신 데이터로 갱신
+  renderPage(cur);
+  // 홈 요약 항상 갱신
+  if(cur!=='home') renderHomeData();
+}
+
+function renderHomeData(){
+  const waiting=QAS.filter(q=>q.status==='waiting').length;
+  const adv=FSTATUS.filter(f=>['교부결정','집행중','정산중','완료'].includes(f.status)).length;
+  const issOpen=ADMIN.reduce((a,x)=>a+(x.issues||[]).filter(i=>!i.r).length,0);
+  const statEl=document.getElementById('home-stats');
+  if(statEl) statEl.innerHTML=`
+    <div class="stat"><div class="stat-v">${adv}</div><div class="stat-l">교부결정 이상</div></div>
+    <div class="stat"><div class="stat-v">${FSTATUS.filter(f=>f.status==='집행중').length}</div><div class="stat-l">집행 중</div></div>
+    <div class="stat"><div class="stat-v">${CASES.length}</div><div class="stat-l">공유 사례</div></div>
+    <div class="stat"><div class="stat-v" style="color:var(--amber);">${waiting}</div><div class="stat-l">Q&A 대기</div></div>
+    ${ROLE==='arko'?`<div class="stat"><div class="stat-v" style="color:var(--red);">${issOpen}</div><div class="stat-l">미해결 이슈</div></div>`:''}
+  `;
+}
+
+/* ══════════════════════════════════════
+   시작
+══════════════════════════════════════ */
+buildNav();
+renderHome();
+initFirebase().catch(e=>console.error('Firebase 오류:',e));
+</script>
+</body>
+</html>
